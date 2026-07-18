@@ -1,0 +1,232 @@
+// =====================================================================
+// SCHEMA MMF - Fonds Rotatif COMDEKS4 (AJEOV Technologies)
+// A coller directement sur https://dbdiagram.io pour generer le MCD/MLD
+// =====================================================================
+
+Table utilisateur {
+  id bigint [pk, increment]
+  code_utilisateur varchar(30) [unique, not null]
+  nom varchar(100) [not null]
+  prenom varchar(100) [not null]
+  sexe varchar(10) [not null]
+  telephone varchar(20) [not null]
+  email varchar(150)
+  mot_de_passe varchar(255) [not null]
+  photo varchar(255)
+  date_creation timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  actif boolean [not null, default: true]
+
+  Note: 'Classe mere (heritage) : Beneficiaire, MembreComite, ResponsableFondRotatif'
+}
+
+Table canton {
+  id bigint [pk, increment]
+  nom varchar(100) [unique, not null]
+  latitude decimal(10,7)
+  longitude decimal(10,7)
+
+  Note: 'Donnee de reference -- module Parametrage'
+}
+
+Table fonction {
+  id bigint [pk, increment]
+  code varchar(30) [unique, not null, note: 'PRESIDENT, VICE_PRESIDENT, SECRETAIRE, TRESORIER, COMMISSAIRE, MEMBRE']
+  libelle varchar(100) [not null]
+
+  Note: 'Donnee de reference -- remplace le texte libre sur membre_comite'
+}
+
+Table habilitation {
+  id bigint [pk, increment]
+  code varchar(50) [unique, not null, note: 'ex. VALIDER_DEMANDE, CONSULTER_RAPPORT']
+  libelle varchar(150) [not null]
+
+  Note: 'Donnee de reference -- module Parametrage'
+}
+
+Table fonction_habilitation {
+  fonction_id bigint [not null, ref: > fonction.id]
+  habilitation_id bigint [not null, ref: > habilitation.id]
+
+  indexes {
+    (fonction_id, habilitation_id) [pk]
+  }
+
+  Note: 'Liaison N..N : quelle fonction a quelle habilitation'
+}
+
+Table parametre {
+  id bigint [pk, increment]
+  cle varchar(100) [unique, not null]
+  valeur varchar(255) [not null]
+  description text
+
+  Note: 'Module Parametrage -- ex. taux_majoration_remboursement = 10'
+}
+
+Table beneficiaire {
+  id bigint [pk, increment]
+  utilisateur_id bigint [unique, not null, ref: - utilisateur.id]
+  age_estime int
+  activite varchar(150)
+  latitude decimal(10,7)
+  longitude decimal(10,7)
+  statut_mmf varchar(30) [not null, default: 'Nouveau', note: 'Nouveau, EnAttente, Finance, RemboursementEnCours, Solde -- recalcule automatiquement']
+}
+
+Table membre_comite {
+  id bigint [pk, increment]
+  utilisateur_id bigint [unique, not null, ref: - utilisateur.id]
+  fonction_id bigint [not null, ref: > fonction.id]
+  canton_id bigint [ref: > canton.id]
+  date_integration date [not null]
+  actif boolean [not null, default: true]
+}
+
+Table responsable_fond_rotatif {
+  id bigint [pk, increment]
+  utilisateur_id bigint [unique, not null, ref: - utilisateur.id]
+  date_nomination date [not null]
+  actif boolean [not null, default: true]
+}
+
+Table domaine {
+  id bigint [pk, increment]
+  nom varchar(100) [unique, not null]
+  description text
+  actif boolean [not null, default: true]
+
+  Note: 'Environnement, Agriculture, Elevage, Peche, Petit commerce, GHM'
+}
+
+Table vague {
+  id bigint [pk, increment]
+  code_vague varchar(30) [unique, not null]
+  nom varchar(150) [not null]
+  description text
+  date_debut date [not null]
+  date_fin date [not null]
+  budget_prevu decimal(15,2)
+  statut varchar(20) [not null, note: 'Planifiee, EnCours, Cloturee']
+  date_creation timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table fond_rotatif {
+  id bigint [pk, increment]
+  code_fond varchar(30) [unique, not null]
+  libelle_fond varchar(150) [not null]
+  montant_fond decimal(15,2) [not null, default: 0]
+}
+
+Table programme {
+  id bigint [pk, increment]
+  nom varchar(50) [unique, not null, note: 'ex. COMDEKS4']
+  description text
+  actif boolean [not null, default: true]
+}
+
+Table demande_financement {
+  id bigint [pk, increment]
+  code_demande varchar(30) [unique, not null]
+  membre_comite_id bigint [not null, ref: > membre_comite.id]
+  vague_id bigint [not null, ref: > vague.id]
+  domaine_id bigint [not null, ref: > domaine.id]
+  objet_demande text [not null]
+  resultat_attendu text
+  periode_previsionnelle varchar(100)
+  site_travail varchar(150)
+  nb_femmes_benef int [not null, default: 0]
+  nb_hommes_benef int [not null, default: 0]
+  montant_demande decimal(15,2) [not null]
+  co_financement_en_nature decimal(15,2) [note: 'apport du canton, en nature -- rassure le donateur']
+  co_financement_especes decimal(15,2) [note: 'apport du canton, en especes']
+  statut_global varchar(20) [not null, default: 'EnCours', note: 'EnCours, Validee, Rejetee']
+  date_creation timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Porte uniquement des chiffres agreges de beneficiaires, pas de liste individuelle'
+}
+
+Table financement {
+  id bigint [pk, increment]
+  code_financement varchar(50) [unique, not null, note: 'genere automatiquement : NOM_PROG/AJT/FR/ANNEE/No_Ordre']
+  reference_utilisateur varchar(100) [note: 'saisie manuelle par l\'utilisateur, usage exact a confirmer avec le president']
+  demande_financement_id bigint [unique, not null, ref: - demande_financement.id]
+  fond_rotatif_id bigint [not null, ref: > fond_rotatif.id]
+  programme_id bigint [not null, ref: > programme.id]
+  responsable_id bigint [not null, ref: > responsable_fond_rotatif.id]
+  montant_financement decimal(15,2) [not null]
+  taux_majoration_applique decimal(5,2) [not null, note: 'ex. 10.00 (%) -- frais administratifs, fige au decaissement']
+  date_decaissement date [not null]
+  statut varchar(20) [not null, default: 'Actif', note: 'Actif, Cloture, TotalementDistribue']
+}
+
+Table attribution_financement {
+  id bigint [pk, increment]
+  financement_id bigint [not null, ref: > financement.id]
+  beneficiaire_id bigint [not null, ref: > beneficiaire.id]
+  montant_attribue decimal(15,2) [not null]
+  date_attribution timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (financement_id, beneficiaire_id) [unique]
+  }
+
+  Note: 'Classe-association : repartition individuelle du Financement entre Beneficiaires'
+}
+
+Table remboursement_beneficiaire {
+  id bigint [pk, increment]
+  attribution_financement_id bigint [not null, ref: > attribution_financement.id]
+  montant decimal(15,2) [not null]
+  date_versement date [not null]
+  observation text
+
+  Note: 'Niveau individuel : fait deja accompli, pas de circuit de Validation'
+}
+
+Table remboursement_collectif {
+  id bigint [pk, increment]
+  financement_id bigint [not null, ref: > financement.id]
+  numero_semaine int [not null]
+  date_prevue date [not null]
+  date_paiement date
+  montant_prevu decimal(15,2) [not null]
+  montant_verse decimal(15,2)
+  statut varchar(20) [not null, default: 'EnAttente', note: 'EnAttente, Confirme, Rejete, EnRetard']
+  observation text
+
+  indexes {
+    (financement_id, numero_semaine) [unique]
+  }
+
+  Note: 'Niveau collectif (comite -> fonds) : protege par le circuit de Validation a 3 niveaux'
+}
+
+Table validation {
+  id bigint [pk, increment]
+  demande_financement_id bigint [ref: > demande_financement.id, note: 'NULL si validation porte sur un remboursement collectif']
+  remboursement_collectif_id bigint [ref: > remboursement_collectif.id, note: 'NULL si validation porte sur une demande']
+  niveau varchar(20) [not null, note: 'TRESORIER, COMMISSAIRE, PRESIDENT']
+  ordre smallint [not null, note: '0, 1, 2']
+  membre_comite_id bigint [not null, ref: > membre_comite.id]
+  statut varchar(20) [not null, default: 'EnAttente', note: 'EnAttente, Approuve, Rejete']
+  commentaire text
+  date_traitement timestamp
+
+  Note: 'CHECK: exactement un des deux FK (demande OU remboursement) doit etre rempli, jamais les deux ni aucun'
+}
+
+Table rapport_genere {
+  id bigint [pk, increment]
+  date_generation timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  periode_debut date [not null]
+  periode_fin date [not null]
+  nombre_beneficiaires int [not null]
+  montant_total_finance decimal(15,2) [not null]
+  montant_total_rembourse decimal(15,2) [not null]
+  taux_remboursement decimal(5,2) [not null]
+  nombre_retards int [not null]
+  genere_par bigint [not null, ref: > responsable_fond_rotatif.id]
+
+  Note: 'Instantane fige au moment de la generation -- pas de table Statistique recalculee en direct'
+}
