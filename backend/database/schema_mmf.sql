@@ -275,7 +275,7 @@ CREATE TABLE validation (
   remboursement_collectif_id BIGINT NULL,
   niveau VARCHAR(20) NOT NULL,      -- TRESORIER, COMMISSAIRE, PRESIDENT
   ordre SMALLINT NOT NULL,          -- 0, 1, 2
-  membre_comite_id BIGINT NOT NULL, -- qui a traité cette étape
+  membre_comite_id BIGINT NULL, -- qui a traité cette étape ; NULL tant que l'étape est en attente
   statut VARCHAR(20) NOT NULL DEFAULT 'EnAttente',   -- EnAttente, Approuve, Rejete
   commentaire TEXT NULL,
   date_traitement TIMESTAMP NULL,

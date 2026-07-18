@@ -208,7 +208,7 @@ Table validation {
   remboursement_collectif_id bigint [ref: > remboursement_collectif.id, note: 'NULL si validation porte sur une demande']
   niveau varchar(20) [not null, note: 'TRESORIER, COMMISSAIRE, PRESIDENT']
   ordre smallint [not null, note: '0, 1, 2']
-  membre_comite_id bigint [not null, ref: > membre_comite.id]
+  membre_comite_id bigint [ref: > membre_comite.id, note: 'NULL tant que l\'etape est en attente ; rempli au moment du traitement']
   statut varchar(20) [not null, default: 'EnAttente', note: 'EnAttente, Approuve, Rejete']
   commentaire text
   date_traitement timestamp
