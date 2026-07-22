@@ -13,6 +13,8 @@ app.use('/api/membres-comite', require('./modules/membres_comite/routes/membre_c
 app.use('/api/demandes-financement', require('./modules/demandes_financement/routes/demande_financement.routes'));
 app.use('/api/validations', require('./modules/validations/routes/validation.routes'));
 app.use('/api/financements', require('./modules/financements/routes/financement.routes'));
+app.use('/api/attributions', require('./modules/attributions/routes/attribution.routes'));
+app.use('/api/remboursements', require('./modules/remboursements/routes/remboursement.routes'));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'mmf-backend' });

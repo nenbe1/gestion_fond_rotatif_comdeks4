@@ -7,8 +7,7 @@ const SALT_ROUNDS = 10;
 
 /**
  * Génère un code utilisateur lisible.
- * Format simple pour l'instant : UTI-<timestamp>. À affiner si le
- * président confirme un format officiel (comme pour code_financement).
+ * Format simple pour l'instant : UTI-<timestamp>.
  */
 function genererCodeUtilisateur() {
   return `UTI-${Date.now()}`;
