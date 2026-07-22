@@ -1,7 +1,7 @@
 # MMF Backend — Gestion du Fonds Rotatif COMDEKS4
 
 Application web-mobile de gestion du fonds rotatif MMF des femmes et jeunes,
-intégrant un conseiller financier IA — AJEOV Technologies.
+intégrant un conseiller financier IA cas COMDEKS4-AJEOV Technologies.
 
 ## Stack technique
 
