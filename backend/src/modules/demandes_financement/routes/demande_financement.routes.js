@@ -10,5 +10,6 @@ router.use(verifierToken);
 router.post('/', validerCreation, demandeController.creer);
 router.get('/', demandeController.consulterTous);
 router.get('/:id', demandeController.consulterParId);
+router.put('/:id/decision-responsable', demandeController.decisionResponsable);
 
 module.exports = router;

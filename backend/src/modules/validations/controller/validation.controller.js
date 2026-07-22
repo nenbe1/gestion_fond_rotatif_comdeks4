@@ -8,7 +8,7 @@ async function traiterEtape(req, res) {
       commentaire: req.body.commentaire,
       membre_comite_id: membreComiteId,
     });
-    res.status(200).json({ validation: resultat });
+    res.status(200).json(resultat);
   } catch (erreur) {
     res.status(erreur.statusCode || 500).json({ message: erreur.message });
   }

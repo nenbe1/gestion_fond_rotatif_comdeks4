@@ -12,10 +12,17 @@ async function majStatutDemande(demandeId, statut) {
 }
 
 /**
- * Traite une étape du circuit (approuver ou rejeter).
+ * Traite une étape du circuit interne du comité (approuver ou rejeter).
  * Règle d'ordre : une étape ne peut être traitée que si la précédente
  * (ordre - 1) est déjà Approuve. La première étape (ordre 0) n'a pas
  * de prédécesseur.
+ *
+ * Important : l'approbation de la dernière étape (Président du comité,
+ * ordre 2) ne crée PAS le Financement directement. Elle fait passer la
+ * demande au statut "EnAttenteResponsable" — c'est la Responsable du Fond
+ * Rotatif qui décide ensuite (voir demandes_financement.service.decisionResponsable),
+ * avec un droit de refus. Le comité valide en interne, la Responsable
+ * décide en dernier ressort.
  */
 async function traiterEtape(validationId, { decision, commentaire, membre_comite_id }) {
   if (!['Approuve', 'Rejete'].includes(decision)) {
@@ -43,18 +50,15 @@ async function traiterEtape(validationId, { decision, commentaire, membre_comite
     membre_comite_id,
   });
 
-  // Répercussion sur la DemandeFinancement (le RemboursementCollectif suivra
-  // le même principe une fois ce module développé).
   if (ligne.demande_financement_id) {
     if (decision === 'Rejete') {
       await majStatutDemande(ligne.demande_financement_id, 'Rejetee');
     } else if (decision === 'Approuve' && ligne.ordre === validationRepository.NIVEAUX.length - 1) {
-      await majStatutDemande(ligne.demande_financement_id, 'Validee');
-      // TODO : déclencher la création du Financement une fois le module écrit.
+      await majStatutDemande(ligne.demande_financement_id, 'EnAttenteResponsable');
     }
   }
 
-  return ligneTraitee;
+  return { validation: ligneTraitee };
 }
 
 async function consulterCircuitDemande(demandeId) {

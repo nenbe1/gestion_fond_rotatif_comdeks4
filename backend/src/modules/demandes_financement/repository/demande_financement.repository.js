@@ -48,4 +48,8 @@ async function create({
   return findById(result.insertId);
 }
 
-module.exports = { findAll, findById, create };
+async function majStatutGlobal(id, statut) {
+  await db.query('UPDATE demande_financement SET statut_global = ? WHERE id = ?', [statut, id]);
+}
+
+module.exports = { findAll, findById, create, majStatutGlobal };

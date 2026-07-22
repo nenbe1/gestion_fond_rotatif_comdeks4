@@ -135,6 +135,14 @@ CREATE TABLE domaine (
   actif BOOLEAN NOT NULL DEFAULT TRUE
 );
 
+INSERT INTO domaine (nom, description, actif) VALUES
+  ('Environnement', 'Activites liees a la protection et gestion de l''environnement', TRUE),
+  ('Agriculture', 'Activites agricoles (cultures vivrieres et de rente)', TRUE),
+  ('Elevage', 'Activites d''elevage', TRUE),
+  ('Peche', 'Activites de peche', TRUE),
+  ('Petit commerce', 'Activites de petit commerce', TRUE),
+  ('GHM', 'Gestion Hygiene Menstruelle', TRUE);
+
 -- ---------------------------------------------------------------------
 -- VAGUE
 -- ---------------------------------------------------------------------
@@ -191,7 +199,7 @@ CREATE TABLE demande_financement (
   montant_demande DECIMAL(15,2) NOT NULL,
   co_financement_en_nature DECIMAL(15,2) NULL,   -- apport du canton, en nature -- rassure le donateur
   co_financement_especes DECIMAL(15,2) NULL,     -- apport du canton, en espèces
-  statut_global VARCHAR(20) NOT NULL DEFAULT 'EnCours',   -- EnCours, Validee, Rejetee
+  statut_global VARCHAR(20) NOT NULL DEFAULT 'EnCours',   -- EnCours, EnAttenteResponsable, Validee, Rejetee
   date_creation TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_demande_membre_comite FOREIGN KEY (membre_comite_id) REFERENCES membre_comite(id),
   CONSTRAINT fk_demande_vague FOREIGN KEY (vague_id) REFERENCES vague(id),
