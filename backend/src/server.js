@@ -15,6 +15,10 @@ app.use('/api/validations', require('./modules/validations/routes/validation.rou
 app.use('/api/financements', require('./modules/financements/routes/financement.routes'));
 app.use('/api/attributions', require('./modules/attributions/routes/attribution.routes'));
 app.use('/api/remboursements', require('./modules/remboursements/routes/remboursement.routes'));
+app.use('/api/domaines', require('./modules/domaines/routes/domaine.routes'));
+app.use('/api/vagues', require('./modules/vagues/routes/vague.routes'));
+app.use('/api/programmes', require('./modules/programmes/routes/programme.routes'));
+app.use('/api/fond-rotatif', require('./modules/fond_rotatif/routes/fond_rotatif.routes'));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'mmf-backend' });
