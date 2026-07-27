@@ -21,6 +21,7 @@ export default function MiseEnPage() {
         <nav>
           <NavLink to="/" end>Tableau de bord</NavLink>
           <NavLink to="/beneficiaires">Bénéficiaires</NavLink>
+          <NavLink to="/membres-comite">Membres du comité</NavLink>
           <NavLink to="/demandes">Demandes de financement</NavLink>
           <NavLink to="/rapports">Rapports</NavLink>
         </nav>
