@@ -1,5 +1,6 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const db = require('../../../config/db');
 const utilisateurRepository = require('../repository/utilisateur.repository');
 const Utilisateur = require('../model/utilisateur.model');
 
@@ -7,10 +8,40 @@ const SALT_ROUNDS = 10;
 
 /**
  * Génère un code utilisateur lisible.
- * Format simple pour l'instant : UTI-<timestamp>.
+ * Format simple pour l'instant : UTI-<timestamp>. À affiner si le
+ * président confirme un format officiel (comme pour code_financement).
  */
 function genererCodeUtilisateur() {
   return `UTI-${Date.now()}`;
+}
+
+/**
+ * Détermine le rôle métier d'un utilisateur (au-delà de l'authentification
+ * générique) en cherchant à quelle table métier il est rattaché.
+ * Utilisé par le frontend Web pour restreindre l'accès à la Responsable
+ * et l'Administration — les membres du comité et bénéficiaires utilisent
+ * le client Mobile (voir échange avec le président sur la répartition
+ * Web/Mobile).
+ * @param {number} utilisateurId
+ * @returns {Promise<'RESPONSABLE'|'MEMBRE_COMITE'|'BENEFICIAIRE'|'INDETERMINE'>}
+ */
+async function resoudreRole(utilisateurId) {
+  const [responsable] = await db.query(
+    'SELECT id FROM responsable_fond_rotatif WHERE utilisateur_id = ? LIMIT 1', [utilisateurId]
+  );
+  if (responsable.length > 0) return 'RESPONSABLE';
+
+  const [membre] = await db.query(
+    'SELECT id FROM membre_comite WHERE utilisateur_id = ? LIMIT 1', [utilisateurId]
+  );
+  if (membre.length > 0) return 'MEMBRE_COMITE';
+
+  const [beneficiaire] = await db.query(
+    'SELECT id FROM beneficiaire WHERE utilisateur_id = ? LIMIT 1', [utilisateurId]
+  );
+  if (beneficiaire.length > 0) return 'BENEFICIAIRE';
+
+  return 'INDETERMINE';
 }
 
 async function inscrire({ nom, prenom, sexe, telephone, email, mot_de_passe, photo }) {
@@ -58,13 +89,18 @@ async function connecter({ telephone, mot_de_passe }) {
     throw erreur;
   }
 
+  const role = await resoudreRole(row.id);
+
   const token = jwt.sign(
-    { id: row.id, telephone: row.telephone },
+    { id: row.id, telephone: row.telephone, role },
     process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
 
-  return { token, utilisateur: Utilisateur.fromRow(row) };
+  const utilisateur = Utilisateur.fromRow(row);
+  utilisateur.role = role;
+
+  return { token, utilisateur };
 }
 
 module.exports = { inscrire, connecter };

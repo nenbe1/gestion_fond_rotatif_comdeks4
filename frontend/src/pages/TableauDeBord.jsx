@@ -33,8 +33,11 @@ export default function TableauDeBord() {
   if (erreur) return <p className="message-erreur">{erreur}</p>;
   if (!donnees) return <p>Chargement...</p>;
 
+  // Seules les demandes où il ne reste que la décision de la Responsable
+  // sont "à traiter" pour le Web — celles encore EnCours au niveau du
+  // comité sont gérées côté Mobile (comité de canton).
   const demandesEnAttente = donnees.demandes.filter(
-    (d) => d.statutGlobal === 'EnCours' || d.statutGlobal === 'EnAttenteResponsable'
+    (d) => d.statutGlobal === 'EnAttenteResponsable'
   );
   const soldeTotal = donnees.fonds.reduce((total, f) => total + Number(f.montantFond), 0);
 

@@ -11,6 +11,7 @@ router.use(verifierToken);
 // "reference" comme une valeur de :id).
 router.get('/reference/fonctions', membreComiteController.listerFonctions);
 router.get('/reference/cantons', membreComiteController.listerCantons);
+router.post('/reference/cantons', membreComiteController.creerCanton);
 
 router.post('/', validerCreation, membreComiteController.creer);
 router.get('/', membreComiteController.consulterTous);

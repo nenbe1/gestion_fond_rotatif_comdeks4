@@ -68,4 +68,15 @@ async function listerCantons() {
   return membreComiteRepository.findAllCantons();
 }
 
-module.exports = { creer, consulterTous, consulterParId, modifier, listerFonctions, listerCantons };
+/**
+ * Crée un nouveau canton (donnée de référence, module Paramétrage).
+ * @param {{nom: string, latitude?: number, longitude?: number}} data
+ */
+async function creerCanton({ nom, latitude, longitude }) {
+  if (!nom || nom.trim().length < 2) {
+    throw erreur('Le nom du canton est requis.', 400);
+  }
+  return membreComiteRepository.createCanton({ nom, latitude, longitude });
+}
+
+module.exports = { creer, consulterTous, consulterParId, modifier, listerFonctions, listerCantons, creerCanton };

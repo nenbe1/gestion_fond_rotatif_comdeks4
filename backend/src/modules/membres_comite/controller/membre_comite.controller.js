@@ -54,4 +54,13 @@ async function listerCantons(req, res) {
   }
 }
 
-module.exports = { creer, consulterTous, consulterParId, modifier, listerFonctions, listerCantons };
+async function creerCanton(req, res) {
+  try {
+    const canton = await membreComiteService.creerCanton(req.body);
+    res.status(201).json({ canton });
+  } catch (erreur) {
+    res.status(erreur.statusCode || 500).json({ message: erreur.message });
+  }
+}
+
+module.exports = { creer, consulterTous, consulterParId, modifier, listerFonctions, listerCantons, creerCanton };

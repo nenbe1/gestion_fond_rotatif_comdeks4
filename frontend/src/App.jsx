@@ -10,11 +10,42 @@ import Rapports from './pages/Rapports';
 import './App.css';
 
 /**
- * Protège une route : redirige vers /connexion si personne n'est connecté.
+ * Rôles autorisés à utiliser la plateforme Web — réservée à la Responsable
+ * et (plus tard) à l'Administration. Les membres du comité et les
+ * bénéficiaires sont destinés au client Mobile (répartition confirmée
+ * par le président).
+ */
+const ROLES_AUTORISES_WEB = ['RESPONSABLE'];
+
+/**
+ * Protège une route :
+ * - redirige vers /connexion si personne n'est connecté
+ * - affiche un message d'accès refusé si le rôle connecté n'est pas
+ *   autorisé sur le Web (plutôt qu'une redirection silencieuse, pour que
+ *   ce soit clair pendant les tests/démo pourquoi l'accès est bloqué)
  */
 function RouteProtegee({ children }) {
-  const { utilisateur } = useAuth();
+  const { utilisateur, deconnecter } = useAuth();
+
   if (!utilisateur) return <Navigate to="/connexion" replace />;
+
+  if (!ROLES_AUTORISES_WEB.includes(utilisateur.role)) {
+    return (
+      <div className="page-connexion">
+        <div className="carte-connexion">
+          <h1>Accès non autorisé</h1>
+          <p className="sous-titre">
+            Cette plateforme Web est réservée à la Responsable du Fond
+            Rotatif et à l'Administration. Les membres du comité et les
+            bénéficiaires utilisent l'application Mobile (en cours de
+            développement).
+          </p>
+          <button onClick={deconnecter}>Se déconnecter</button>
+        </div>
+      </div>
+    );
+  }
+
   return children;
 }
 

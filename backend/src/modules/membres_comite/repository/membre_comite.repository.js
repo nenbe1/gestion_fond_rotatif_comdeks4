@@ -54,7 +54,21 @@ async function findAllCantons() {
   return rows;
 }
 
+/**
+ * Crée un nouveau canton. latitude/longitude optionnels — utile sur le
+ * terrain quand le nom du canton est connu avant d'avoir pu relever la
+ * position GPS exacte (à compléter plus tard via modifierCanton).
+ */
+async function createCanton({ nom, latitude, longitude }) {
+  const [result] = await db.query(
+    'INSERT INTO canton (nom, latitude, longitude) VALUES (?, ?, ?)',
+    [nom, latitude || null, longitude || null]
+  );
+  const [rows] = await db.query('SELECT id, nom, latitude, longitude FROM canton WHERE id = ?', [result.insertId]);
+  return rows[0];
+}
+
 module.exports = {
   findAll, findById, findByUtilisateurId, create, update,
-  findAllFonctions, findAllCantons,
+  findAllFonctions, findAllCantons, createCanton,
 };

@@ -3,9 +3,16 @@ import { Link } from 'react-router-dom';
 import appelerApi from '../api/client';
 
 /**
- * Page Demandes de financement — liste toutes les demandes avec leur
- * statut, et permet d'en créer une nouvelle (déclenche automatiquement
- * le circuit de validation à 3 niveaux côté backend).
+ * Page Demandes de financement.
+ *
+ * Par défaut, n'affiche que les demandes déjà validées par le circuit
+ * interne du comité (statut "EnAttenteResponsable") — c'est-à-dire
+ * celles où il ne reste que la décision de la Responsable. Les demandes
+ * encore en cours de validation au niveau du comité (statut "EnCours")
+ * ne concernent pas la Responsable/Administration et sont gérées par le
+ * comité via le client Mobile.
+ *
+ * Un onglet "Toutes les demandes" reste disponible pour l'historique/audit.
  */
 export default function Demandes() {
   const [demandes, setDemandes] = useState([]);
@@ -15,6 +22,7 @@ export default function Demandes() {
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState('');
   const [afficherFormulaire, setAfficherFormulaire] = useState(false);
+  const [onglet, setOnglet] = useState('attente'); // 'attente' | 'toutes'
   const [formulaire, setFormulaire] = useState({
     membre_comite_id: '', vague_id: '', domaine_id: '', objet_demande: '',
     montant_demande: '', nb_femmes_benef: 0, nb_hommes_benef: 0,
@@ -69,12 +77,31 @@ export default function Demandes() {
     Rejetee: 'Rejetée',
   };
 
+  const demandesAffichees = onglet === 'attente'
+    ? demandes.filter((d) => d.statutGlobal === 'EnAttenteResponsable')
+    : demandes;
+
   return (
     <div>
       <div className="entete-page">
         <h1>Demandes de financement</h1>
         <button onClick={() => setAfficherFormulaire(!afficherFormulaire)}>
           {afficherFormulaire ? 'Annuler' : '+ Nouvelle demande'}
+        </button>
+      </div>
+
+      <div className="onglets">
+        <button
+          className={onglet === 'attente' ? 'onglet-actif' : 'onglet'}
+          onClick={() => setOnglet('attente')}
+        >
+          En attente de décision ({demandes.filter((d) => d.statutGlobal === 'EnAttenteResponsable').length})
+        </button>
+        <button
+          className={onglet === 'toutes' ? 'onglet-actif' : 'onglet'}
+          onClick={() => setOnglet('toutes')}
+        >
+          Toutes les demandes ({demandes.length})
         </button>
       </div>
 
@@ -124,7 +151,7 @@ export default function Demandes() {
             <tr><th>Code</th><th>Objet</th><th>Montant</th><th>Statut</th><th></th></tr>
           </thead>
           <tbody>
-            {demandes.map((d) => (
+            {demandesAffichees.map((d) => (
               <tr key={d.id}>
                 <td>{d.codeDemande}</td>
                 <td>{d.objetDemande}</td>
@@ -133,8 +160,10 @@ export default function Demandes() {
                 <td><Link to={`/demandes/${d.id}`}>Voir le circuit →</Link></td>
               </tr>
             ))}
-            {demandes.length === 0 && (
-              <tr><td colSpan="5" className="vide">Aucune demande pour l'instant.</td></tr>
+            {demandesAffichees.length === 0 && (
+              <tr><td colSpan="5" className="vide">
+                {onglet === 'attente' ? "Aucune demande en attente de votre décision." : "Aucune demande pour l'instant."}
+              </td></tr>
             )}
           </tbody>
         </table>
