@@ -258,3 +258,7 @@ label {
 .periode-rapport { font-weight: 700; color: var(--vert-fonce); margin: 0 0 0.8rem; }
 .indicateurs-rapport { display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.85rem; }
 .indicateurs-rapport span { font-weight: 700; color: var(--gris-texte); margin-right: 0.4rem; }
+
+.ligne-remboursement { display: flex; gap: 0.4rem; align-items: center; }
+.ligne-remboursement input { width: 100px; padding: 0.35rem 0.5rem; }
+.ligne-remboursement button { padding: 0.35rem 0.7rem; font-size: 0.8rem; }

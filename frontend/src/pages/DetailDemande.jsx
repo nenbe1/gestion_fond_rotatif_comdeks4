@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import appelerApi from '../api/client';
 
 const NIVEAUX_LIBELLES = {
@@ -173,6 +173,7 @@ export default function DetailDemande() {
       {demande.statutGlobal === 'Validee' && (
         <div className="carte-succes">
           ✅ Financement créé — le fonds a été débité et le décaissement est effectif.
+          {' '}<Link to="/financements">Voir les financements →</Link>
         </div>
       )}
     </div>

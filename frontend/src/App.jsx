@@ -5,6 +5,8 @@ import Connexion from './pages/Connexion';
 import TableauDeBord from './pages/TableauDeBord';
 import Beneficiaires from './pages/Beneficiaires';
 import MembresComite from './pages/MembresComite';
+import Financements from './pages/Financements';
+import DetailFinancement from './pages/DetailFinancement';
 import Demandes from './pages/Demandes';
 import DetailDemande from './pages/DetailDemande';
 import Rapports from './pages/Rapports';
@@ -67,6 +69,8 @@ function App() {
             <Route index element={<TableauDeBord />} />
             <Route path="beneficiaires" element={<Beneficiaires />} />
             <Route path="membres-comite" element={<MembresComite />} />
+            <Route path="financements" element={<Financements />} />
+            <Route path="financements/:id" element={<DetailFinancement />} />
             <Route path="demandes" element={<Demandes />} />
             <Route path="demandes/:id" element={<DetailDemande />} />
             <Route path="rapports" element={<Rapports />} />
