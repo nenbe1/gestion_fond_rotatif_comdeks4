@@ -230,3 +230,21 @@ Table rapport_genere {
 
   Note: 'Instantane fige au moment de la generation -- pas de table Statistique recalculee en direct'
 }
+
+Table autorite {
+  id bigint [pk, increment]
+  utilisateur_id bigint [unique, not null, ref: > utilisateur.id]
+  fonction varchar(150) [not null]
+  type_critere autorite_type_critere [not null]
+  domaine_id bigint [ref: > domaine.id, note: 'rempli seulement si type_critere = DOMAINE']
+  valeur_critere varchar(20) [note: 'rempli seulement si type_critere = SEXE ou AGE_MAX']
+  actif boolean [not null, default: true]
+
+  Note: 'Delegues institutionnels (Jeunesse, Femmes, Agriculture...) -- lecture seule de statistiques globales, jamais de detail nominatif'
+}
+
+Enum autorite_type_critere {
+  DOMAINE
+  SEXE
+  AGE_MAX
+}

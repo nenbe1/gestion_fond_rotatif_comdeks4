@@ -314,6 +314,34 @@ CREATE TABLE rapport_genere (
   CONSTRAINT fk_rapport_genere_par FOREIGN KEY (genere_par) REFERENCES responsable_fond_rotatif(id)
 );
 
+-- ---------------------------------------------------------------------
+-- 11. AUTORITE (hérite de utilisateur) — délégués institutionnels
+-- (Jeunesse, Femmes, Agriculture...) : accès en LECTURE SEULE à des
+-- statistiques globales (jamais de détail nominatif), filtrées selon
+-- un seul critère par délégué :
+--   - DOMAINE  : voit les financements du domaine (ex. Agriculture)
+--   - SEXE     : voit les financements allés aux bénéficiaires F ou M
+--   - AGE_MAX  : voit les financements allés aux bénéficiaires dont
+--                l'âge est <= valeur_critere (ex. "Jeunesse" = 30)
+-- Un seul de domaine_id / valeur_critere est renseigné, selon type_critere.
+-- ---------------------------------------------------------------------
+CREATE TABLE autorite (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  utilisateur_id BIGINT UNIQUE NOT NULL,
+  fonction VARCHAR(150) NOT NULL, -- libellé libre, ex. "Délégué départemental de la Jeunesse"
+  type_critere ENUM('DOMAINE', 'SEXE', 'AGE_MAX') NOT NULL,
+  domaine_id BIGINT NULL,         -- renseigné uniquement si type_critere = DOMAINE
+  valeur_critere VARCHAR(20) NULL, -- renseigné uniquement si type_critere = SEXE ('F'/'M') ou AGE_MAX (ex. '30')
+  actif BOOLEAN NOT NULL DEFAULT TRUE,
+  CONSTRAINT fk_autorite_utilisateur FOREIGN KEY (utilisateur_id) REFERENCES utilisateur(id),
+  CONSTRAINT fk_autorite_domaine FOREIGN KEY (domaine_id) REFERENCES domaine(id),
+  CONSTRAINT chk_autorite_critere CHECK (
+    (type_critere = 'DOMAINE' AND domaine_id IS NOT NULL AND valeur_critere IS NULL)
+    OR
+    (type_critere IN ('SEXE', 'AGE_MAX') AND domaine_id IS NULL AND valeur_critere IS NOT NULL)
+  )
+);
+
 -- =====================================================================
 -- DONNEES DE REFERENCE INITIALES (module Paramétrage)
 -- =====================================================================

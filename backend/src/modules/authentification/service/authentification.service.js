@@ -23,7 +23,7 @@ function genererCodeUtilisateur() {
  * le client Mobile (voir échange avec le président sur la répartition
  * Web/Mobile).
  * @param {number} utilisateurId
- * @returns {Promise<'RESPONSABLE'|'MEMBRE_COMITE'|'BENEFICIAIRE'|'INDETERMINE'>}
+ * @returns {Promise<'RESPONSABLE'|'MEMBRE_COMITE'|'BENEFICIAIRE'|'AUTORITE'|'INDETERMINE'>}
  */
 async function resoudreRole(utilisateurId) {
   const [responsable] = await db.query(
@@ -40,6 +40,11 @@ async function resoudreRole(utilisateurId) {
     'SELECT id FROM beneficiaire WHERE utilisateur_id = ? LIMIT 1', [utilisateurId]
   );
   if (beneficiaire.length > 0) return 'BENEFICIAIRE';
+
+  const [autorite] = await db.query(
+    'SELECT id FROM autorite WHERE utilisateur_id = ? LIMIT 1', [utilisateurId]
+  );
+  if (autorite.length > 0) return 'AUTORITE';
 
   return 'INDETERMINE';
 }
