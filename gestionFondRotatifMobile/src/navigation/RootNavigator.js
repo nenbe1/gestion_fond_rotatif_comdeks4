@@ -1,0 +1,77 @@
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { ActivityIndicator, View, Text, StyleSheet } from 'react-native';
+import { useAuth } from '../context/AuthContext';
+import { couleurs } from '../theme/couleurs';
+
+import ConnexionScreen from '../screens/ConnexionScreen';
+import TableauDeBordComiteScreen from '../screens/comite/TableauDeBordComiteScreen';
+import DetailDemandeComiteScreen from '../screens/comite/DetailDemandeComiteScreen';
+import MonCompteScreen from '../screens/beneficiaire/MonCompteScreen';
+
+const Stack = createNativeStackNavigator();
+
+/** Pile de navigation du comité : liste des demandes -> détail + traitement. */
+function PileComite() {
+  return (
+    <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: couleurs.vertFonce }, headerTintColor: couleurs.blanc }}>
+      <Stack.Screen name="TableauDeBord" component={TableauDeBordComiteScreen} options={{ title: 'Demandes de financement' }} />
+      <Stack.Screen name="DetailDemande" component={DetailDemandeComiteScreen} options={{ title: 'Détail de la demande' }} />
+    </Stack.Navigator>
+  );
+}
+
+/** Pile de navigation du bénéficiaire : juste son compte, en lecture seule. */
+function PileBeneficiaire() {
+  return (
+    <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: couleurs.vertFonce }, headerTintColor: couleurs.blanc }}>
+      <Stack.Screen name="MonCompte" component={MonCompteScreen} options={{ title: 'Mon compte' }} />
+    </Stack.Navigator>
+  );
+}
+
+/**
+ * Rôles non pris en charge par le Mobile (Responsable, Autorité,
+ * Indéterminé) : on affiche un message clair plutôt qu'un écran vide,
+ * ils sont censés utiliser la plateforme Web.
+ */
+function AccesNonPrisEnCharge({ deconnecter }) {
+  return (
+    <View style={styles.centre}>
+      <Text style={styles.messageAcces}>Ce type de compte utilise la plateforme Web, pas l'application Mobile.</Text>
+      <Text onPress={deconnecter} style={styles.lienDeconnexion}>Se déconnecter</Text>
+    </View>
+  );
+}
+
+export default function RootNavigator() {
+  const { utilisateur, enChargement, deconnecter } = useAuth();
+
+  if (enChargement) {
+    return (
+      <View style={styles.centre}>
+        <ActivityIndicator size="large" color={couleurs.vertFonce} />
+      </View>
+    );
+  }
+
+  return (
+    <NavigationContainer>
+      {!utilisateur ? (
+        <ConnexionScreen />
+      ) : utilisateur.role === 'MEMBRE_COMITE' ? (
+        <PileComite />
+      ) : utilisateur.role === 'BENEFICIAIRE' ? (
+        <PileBeneficiaire />
+      ) : (
+        <AccesNonPrisEnCharge deconnecter={deconnecter} />
+      )}
+    </NavigationContainer>
+  );
+}
+
+const styles = StyleSheet.create({
+  centre: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: couleurs.creme, padding: 24 },
+  messageAcces: { textAlign: 'center', color: couleurs.grisTexte, fontSize: 15, marginBottom: 16 },
+  lienDeconnexion: { color: couleurs.brique, fontSize: 14 },
+});

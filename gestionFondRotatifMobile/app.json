@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "Fonds Rotatif MMF",
+    "slug": "gestion-fond-rotatif-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#faf8f3",
+    "splash": {
+      "backgroundColor": "#faf8f3"
+    },
+    "android": {
+      "package": "com.ajeov.fondrotatifmmf"
+    },
+    "ios": {
+      "bundleIdentifier": "com.ajeov.fondrotatifmmf",
+      "supportsTablet": false
+    }
+  }
+}
