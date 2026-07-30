@@ -7,7 +7,11 @@ import { couleurs } from '../theme/couleurs';
 import ConnexionScreen from '../screens/ConnexionScreen';
 import TableauDeBordComiteScreen from '../screens/comite/TableauDeBordComiteScreen';
 import DetailDemandeComiteScreen from '../screens/comite/DetailDemandeComiteScreen';
+import ListeFinancementsScreen from '../screens/comite/ListeFinancementsScreen';
+import DetailFinancementRemboursementsScreen from '../screens/comite/DetailFinancementRemboursementsScreen';
+import DetailCircuitRemboursementCollectifScreen from '../screens/comite/DetailCircuitRemboursementCollectifScreen';
 import MonCompteScreen from '../screens/beneficiaire/MonCompteScreen';
+import DetailFinancementScreen from '../screens/beneficiaire/DetailFinancementScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -17,15 +21,19 @@ function PileComite() {
     <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: couleurs.vertFonce }, headerTintColor: couleurs.blanc }}>
       <Stack.Screen name="TableauDeBord" component={TableauDeBordComiteScreen} options={{ title: 'Demandes de financement' }} />
       <Stack.Screen name="DetailDemande" component={DetailDemandeComiteScreen} options={{ title: 'Détail de la demande' }} />
+      <Stack.Screen name="ListeFinancements" component={ListeFinancementsScreen} options={{ title: 'Remboursements collectifs' }} />
+      <Stack.Screen name="DetailFinancementRemboursements" component={DetailFinancementRemboursementsScreen} options={{ title: 'Détail du financement' }} />
+      <Stack.Screen name="DetailCircuitRemboursementCollectif" component={DetailCircuitRemboursementCollectifScreen} options={{ title: 'Circuit de validation' }} />
     </Stack.Navigator>
   );
 }
 
-/** Pile de navigation du bénéficiaire : juste son compte, en lecture seule. */
+/** Pile de navigation du bénéficiaire : son compte, et le détail des remboursements par financement. */
 function PileBeneficiaire() {
   return (
     <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: couleurs.vertFonce }, headerTintColor: couleurs.blanc }}>
       <Stack.Screen name="MonCompte" component={MonCompteScreen} options={{ title: 'Mon compte' }} />
+      <Stack.Screen name="DetailFinancement" component={DetailFinancementScreen} options={{ title: 'Détail du financement' }} />
     </Stack.Navigator>
   );
 }

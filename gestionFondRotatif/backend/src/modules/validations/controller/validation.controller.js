@@ -23,4 +23,13 @@ async function consulterCircuitDemande(req, res) {
   }
 }
 
-module.exports = { traiterEtape, consulterCircuitDemande };
+async function consulterCircuitRemboursementCollectif(req, res) {
+  try {
+    const circuit = await validationService.consulterCircuitRemboursementCollectif(req.params.remboursementCollectifId);
+    res.status(200).json({ circuit });
+  } catch (erreur) {
+    res.status(erreur.statusCode || 500).json({ message: erreur.message });
+  }
+}
+
+module.exports = { traiterEtape, consulterCircuitDemande, consulterCircuitRemboursementCollectif };

@@ -8,6 +8,7 @@ const { verifierToken } = require('../../../middlewares/auth.middleware');
 router.use(verifierToken);
 
 router.get('/demande/:demandeId', validationController.consulterCircuitDemande);
+router.get('/remboursement-collectif/:remboursementCollectifId', validationController.consulterCircuitRemboursementCollectif);
 router.put('/:id/traiter', validerTraitement, validationController.traiterEtape);
 
 module.exports = router;

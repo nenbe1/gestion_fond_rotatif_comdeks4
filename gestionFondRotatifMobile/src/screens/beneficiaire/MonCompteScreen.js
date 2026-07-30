@@ -11,7 +11,7 @@ const LIBELLE_STATUT = {
   Solde: 'Soldé',
 };
 
-export default function MonCompteScreen() {
+export default function MonCompteScreen({ navigation }) {
   const [compte, setCompte] = useState(null);
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState('');
@@ -80,7 +80,14 @@ export default function MonCompteScreen() {
         </View>
       }
       renderItem={({ item }) => (
-        <View style={styles.ligneFinancement}>
+        <TouchableOpacity
+          style={styles.ligneFinancement}
+          onPress={() => navigation.navigate('DetailFinancement', {
+            attributionId: item.id,
+            montantAttribue: item.montantAttribue,
+            codeFinancement: item.codeFinancement,
+          })}
+        >
           <View>
             <Text style={styles.codeFinancement}>{item.codeFinancement}</Text>
             <Text style={styles.dateFinancement}>
@@ -88,7 +95,7 @@ export default function MonCompteScreen() {
             </Text>
           </View>
           <Text style={styles.montantFinancement}>{item.montantAttribue.toLocaleString('fr-FR')} FCFA</Text>
-        </View>
+        </TouchableOpacity>
       )}
       ListEmptyComponent={!chargement ? <Text style={styles.vide}>Aucun financement reçu pour l'instant.</Text> : null}
     />

@@ -56,6 +56,16 @@ async function traiterEtape(validationId, { decision, commentaire, membre_comite
     } else if (decision === 'Approuve' && ligne.ordre === validationRepository.NIVEAUX.length - 1) {
       await majStatutDemande(ligne.demande_financement_id, 'EnAttenteResponsable');
     }
+  } else if (ligne.remboursement_collectif_id) {
+    // require() différé ici (plutôt qu'en haut du fichier) uniquement
+    // pour garder ce fichier autonome à lire ; pas de dépendance
+    // circulaire (remboursement.service n'importe pas validation.service).
+    const remboursementService = require('../../remboursements/service/remboursement.service');
+    if (decision === 'Rejete') {
+      await remboursementService.rejeterApresValidation(ligne.remboursement_collectif_id);
+    } else if (decision === 'Approuve' && ligne.ordre === validationRepository.NIVEAUX.length - 1) {
+      await remboursementService.confirmerApresValidation(ligne.remboursement_collectif_id);
+    }
   }
 
   return { validation: ligneTraitee };
@@ -63,6 +73,10 @@ async function traiterEtape(validationId, { decision, commentaire, membre_comite
 
 async function consulterCircuitDemande(demandeId) {
   return validationRepository.findByDemandeId(demandeId);
+}
+
+async function consulterCircuitRemboursementCollectif(remboursementCollectifId) {
+  return validationRepository.findByRemboursementCollectifId(remboursementCollectifId);
 }
 
 async function resoudreMembreComiteId(utilisateurId) {
@@ -76,4 +90,4 @@ async function resoudreMembreComiteId(utilisateurId) {
   return rows[0].id;
 }
 
-module.exports = { traiterEtape, consulterCircuitDemande, resoudreMembreComiteId };
+module.exports = { traiterEtape, consulterCircuitDemande, consulterCircuitRemboursementCollectif, resoudreMembreComiteId };

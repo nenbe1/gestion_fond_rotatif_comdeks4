@@ -47,9 +47,14 @@ export default function TableauDeBordComiteScreen({ navigation }) {
       keyExtractor={(item) => String(item.id)}
       refreshControl={<RefreshControl refreshing={chargement} onRefresh={charger} />}
       ListHeaderComponent={
-        <View style={styles.entete}>
-          <Text style={styles.titre} numberOfLines={1} adjustsFontSizeToFit>Demandes</Text>
-          <TouchableOpacity onPress={deconnecter}><Text style={styles.deconnexion}>Déconnexion</Text></TouchableOpacity>
+        <View>
+          <View style={styles.entete}>
+            <Text style={styles.titre} numberOfLines={1} adjustsFontSizeToFit>Demandes</Text>
+            <TouchableOpacity onPress={deconnecter}><Text style={styles.deconnexion}>Déconnexion</Text></TouchableOpacity>
+          </View>
+          <TouchableOpacity style={styles.lienRemboursements} onPress={() => navigation.navigate('ListeFinancements')}>
+            <Text style={styles.texteLienRemboursements}>Suivi des remboursements collectifs →</Text>
+          </TouchableOpacity>
         </View>
       }
       ListEmptyComponent={!chargement ? (
@@ -78,6 +83,8 @@ const styles = StyleSheet.create({
   conteneur: { flex: 1, backgroundColor: couleurs.creme },
   contenu: { padding: 20 },
   entete: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  lienRemboursements: { backgroundColor: couleurs.blanc, borderRadius: 8, padding: 12, marginBottom: 16 },
+  texteLienRemboursements: { color: couleurs.vertFonce, fontWeight: '600', fontSize: 13 },
   titre: { flex: 1, fontSize: 20, fontWeight: '700', color: couleurs.vertFonce, marginRight: 10 },
   deconnexion: { color: couleurs.brique, fontSize: 13, flexShrink: 0 },
   vide: { textAlign: 'center', color: '#888', marginTop: 20 },

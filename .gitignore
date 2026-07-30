@@ -1,5 +1,20 @@
+# Node
 **/node_modules/
+
+# Logs
+*.log
+
+# Environnements
+**/.env
+
+# Expo
 **/.expo/
 **/.expo-shared/
-*.log
-.env
+
+# Build
+**/dist/
+**/build/
+
+# Android / iOS
+**/android/app/build/
+**/ios/build/
