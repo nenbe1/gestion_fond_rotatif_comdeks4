@@ -1,0 +1,179 @@
+import { useEffect, useState } from 'react';
+import appelerApi from '../api/client';
+
+const FORMULAIRE_VIDE = {
+  nom: '', prenom: '', sexe: 'F', telephone: '', mot_de_passe: '',
+  fonction: '', type_critere: 'DOMAINE', domaine_id: '', valeur_critere: '',
+};
+
+const LIBELLE_TYPE_CRITERE = {
+  DOMAINE: 'Domaine',
+  SEXE: 'Sexe',
+  AGE_MAX: 'Âge maximum',
+};
+
+/**
+ * Page Autorités — délégués institutionnels (Jeunesse, Femmes,
+ * Agriculture...) avec un accès Web dédié, en lecture seule, à des
+ * statistiques globales filtrées par un seul critère. Créés uniquement
+ * par la Responsable (jamais en libre-service : le critère détermine
+ * quelles données sensibles le compte pourra consulter).
+ */
+export default function Autorites() {
+  const [autorites, setAutorites] = useState([]);
+  const [domaines, setDomaines] = useState([]);
+  const [chargement, setChargement] = useState(true);
+  const [erreur, setErreur] = useState('');
+  const [afficherFormulaire, setAfficherFormulaire] = useState(false);
+  const [formulaire, setFormulaire] = useState(FORMULAIRE_VIDE);
+  const [envoiEnCours, setEnvoiEnCours] = useState(false);
+
+  async function chargerDonnees() {
+    setChargement(true);
+    try {
+      const [a, d] = await Promise.all([
+        appelerApi('/autorites'),
+        appelerApi('/domaines'),
+      ]);
+      setAutorites(a.autorites);
+      setDomaines(d.domaines);
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setChargement(false);
+    }
+  }
+
+  useEffect(() => { chargerDonnees(); }, []);
+
+  function gererChangement(e) {
+    const { name, value } = e.target;
+    if (name === 'type_critere') {
+      // Changer de type de critère réinitialise les valeurs de l'ancien,
+      // pour ne jamais envoyer domaine_id ET valeur_critere en même temps.
+      setFormulaire({ ...formulaire, type_critere: value, domaine_id: '', valeur_critere: '' });
+    } else {
+      setFormulaire({ ...formulaire, [name]: value });
+    }
+  }
+
+  async function gererCreation(e) {
+    e.preventDefault();
+    setErreur('');
+    setEnvoiEnCours(true);
+    try {
+      await appelerApi('/autorites', { method: 'POST', body: formulaire });
+      setAfficherFormulaire(false);
+      setFormulaire(FORMULAIRE_VIDE);
+      await chargerDonnees();
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setEnvoiEnCours(false);
+    }
+  }
+
+  function libelleCritere(a) {
+    if (a.typeCritere === 'DOMAINE') return `Domaine : ${a.domaineNom ?? '—'}`;
+    if (a.typeCritere === 'SEXE') return `Sexe : ${a.valeurCritere}`;
+    return `Âge <= ${a.valeurCritere} ans`;
+  }
+
+  return (
+    <div>
+      <div className="entete-page">
+        <h1>Autorités (délégués)</h1>
+        <button onClick={() => setAfficherFormulaire(!afficherFormulaire)}>
+          {afficherFormulaire ? 'Annuler' : '+ Nouveau délégué'}
+        </button>
+      </div>
+
+      {erreur && <p className="message-erreur">{erreur}</p>}
+
+      {afficherFormulaire && (
+        <form className="formulaire-carte" onSubmit={gererCreation}>
+          <div className="grille-formulaire">
+            <label>Nom <input name="nom" value={formulaire.nom} onChange={gererChangement} required /></label>
+            <label>Prénom <input name="prenom" value={formulaire.prenom} onChange={gererChangement} required /></label>
+            <label>
+              Sexe
+              <select name="sexe" value={formulaire.sexe} onChange={gererChangement}>
+                <option value="F">F</option>
+                <option value="M">M</option>
+              </select>
+            </label>
+            <label>Téléphone <input name="telephone" value={formulaire.telephone} onChange={gererChangement} required /></label>
+            <label>Mot de passe <input type="password" name="mot_de_passe" value={formulaire.mot_de_passe} onChange={gererChangement} required /></label>
+            <label className="pleine-largeur">
+              Fonction <input name="fonction" placeholder='Ex : "Délégué départemental de la Jeunesse"' value={formulaire.fonction} onChange={gererChangement} required />
+            </label>
+
+            <label>
+              Critère d'accès
+              <select name="type_critere" value={formulaire.type_critere} onChange={gererChangement}>
+                {Object.entries(LIBELLE_TYPE_CRITERE).map(([valeur, libelle]) => (
+                  <option key={valeur} value={valeur}>{libelle}</option>
+                ))}
+              </select>
+            </label>
+
+            {formulaire.type_critere === 'DOMAINE' && (
+              <label>
+                Domaine concerné
+                <select name="domaine_id" value={formulaire.domaine_id} onChange={gererChangement} required>
+                  <option value="">-- Choisir --</option>
+                  {domaines.map((d) => <option key={d.id} value={d.id}>{d.nom}</option>)}
+                </select>
+              </label>
+            )}
+
+            {formulaire.type_critere === 'SEXE' && (
+              <label>
+                Sexe concerné
+                <select name="valeur_critere" value={formulaire.valeur_critere} onChange={gererChangement} required>
+                  <option value="">-- Choisir --</option>
+                  <option value="F">Femmes (F)</option>
+                  <option value="M">Hommes (M)</option>
+                </select>
+              </label>
+            )}
+
+            {formulaire.type_critere === 'AGE_MAX' && (
+              <label>
+                Âge maximum (ex : 30 pour "jeunesse")
+                <input type="number" name="valeur_critere" min="1" value={formulaire.valeur_critere} onChange={gererChangement} required />
+              </label>
+            )}
+          </div>
+          <button type="submit" disabled={envoiEnCours}>{envoiEnCours ? 'Création...' : 'Créer le délégué'}</button>
+        </form>
+      )}
+
+      {chargement ? (
+        <p>Chargement...</p>
+      ) : (
+        <table className="tableau">
+          <thead>
+            <tr>
+              <th>Nom</th><th>Prénom</th><th>Téléphone</th><th>Fonction</th><th>Critère</th>
+            </tr>
+          </thead>
+          <tbody>
+            {autorites.map((a) => (
+              <tr key={a.id}>
+                <td>{a.nom}</td>
+                <td>{a.prenom}</td>
+                <td>{a.telephone}</td>
+                <td>{a.fonction}</td>
+                <td>{libelleCritere(a)}</td>
+              </tr>
+            ))}
+            {autorites.length === 0 && (
+              <tr><td colSpan="5" className="vide">Aucun délégué pour l'instant.</td></tr>
+            )}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}

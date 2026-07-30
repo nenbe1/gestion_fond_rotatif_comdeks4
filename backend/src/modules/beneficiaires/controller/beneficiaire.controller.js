@@ -45,4 +45,14 @@ async function recalculerStatut(req, res) {
   }
 }
 
-module.exports = { creer, consulterTous, consulterParId, modifier, recalculerStatut };
+/** GET /api/beneficiaires/moi/compte — pour le Mobile : le bénéficiaire consulte son propre compte. */
+async function consulterMonCompte(req, res) {
+  try {
+    const compte = await beneficiaireService.consulterMonCompte(req.utilisateurId);
+    res.status(200).json({ compte });
+  } catch (erreur) {
+    res.status(erreur.statusCode || 500).json({ message: erreur.message });
+  }
+}
+
+module.exports = { creer, consulterTous, consulterParId, modifier, recalculerStatut, consulterMonCompte };

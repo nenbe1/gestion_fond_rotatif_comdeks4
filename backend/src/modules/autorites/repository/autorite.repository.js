@@ -60,7 +60,7 @@ async function calculerStatistiques({ typeCritere, domaineId, valeurCritere }) {
     condition = 'dem.domaine_id = ?';
     params = [domaineId];
   } else if (typeCritere === 'SEXE') {
-    condition = 'b.sexe = ?';
+    condition = 'u.sexe = ?';
     params = [valeurCritere];
   } else if (typeCritere === 'AGE_MAX') {
     condition = 'b.age_estime IS NOT NULL AND b.age_estime <= ?';
@@ -77,6 +77,7 @@ async function calculerStatistiques({ typeCritere, domaineId, valeurCritere }) {
      FROM attribution_financement a
      INNER JOIN financement f ON f.id = a.financement_id
      INNER JOIN beneficiaire b ON b.id = a.beneficiaire_id
+     INNER JOIN utilisateur u ON u.id = b.utilisateur_id
      INNER JOIN demande_financement dem ON dem.id = f.demande_financement_id
      WHERE ${condition}`,
     params

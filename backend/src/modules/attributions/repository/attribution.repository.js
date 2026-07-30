@@ -16,6 +16,15 @@ async function findByFinancementId(financementId) {
   return rows;
 }
 
+/** Tous les financements reçus par un bénéficiaire donné (pour "mon compte"). */
+async function findByBeneficiaireId(beneficiaireId) {
+  const [rows] = await db.query(
+    `${SELECT_BASE} WHERE af.beneficiaire_id = ? ORDER BY af.date_attribution DESC`,
+    [beneficiaireId]
+  );
+  return rows;
+}
+
 async function findById(id) {
   const [rows] = await db.query(`${SELECT_BASE} WHERE af.id = ? LIMIT 1`, [id]);
   return rows[0] || null;
@@ -57,6 +66,6 @@ async function sommeRembourseePourAttribution(attributionId) {
 }
 
 module.exports = {
-  findByFinancementId, findById, findByFinancementEtBeneficiaire,
+  findByFinancementId, findById, findByFinancementEtBeneficiaire, findByBeneficiaireId,
   sommeAttribueePourFinancement, create, sommeRembourseePourAttribution,
 };

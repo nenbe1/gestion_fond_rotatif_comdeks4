@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const utilisateurRepository = require('../../authentification/repository/utilisateur.repository');
 const beneficiaireRepository = require('../repository/beneficiaire.repository');
+const attributionRepository = require('../../attributions/repository/attribution.repository');
 const Beneficiaire = require('../model/beneficiaire.model');
 
 const SALT_ROUNDS = 10;
@@ -90,4 +91,42 @@ async function recalculerStatutMMF(id) {
   return statut;
 }
 
-module.exports = { creer, consulterTous, consulterParId, modifier, recalculerStatutMMF };
+/**
+ * Consultation par le bénéficiaire connecté de son propre compte
+ * (Mobile) : ses infos, ses financements reçus, et sa situation
+ * financière globale (attribué / remboursé / reste dû avec la
+ * majoration de 10% figée par financement).
+ * @throws {Error} 403 si l'utilisateur connecté n'est pas un bénéficiaire
+ */
+async function consulterMonCompte(utilisateurId) {
+  const row = await beneficiaireRepository.findByUtilisateurId(utilisateurId);
+  if (!row) {
+    const erreur = new Error("L'utilisateur connecté n'est pas enregistré comme bénéficiaire.");
+    erreur.statusCode = 403;
+    throw erreur;
+  }
+  const beneficiaire = Beneficiaire.fromRow(row);
+
+  const [situation, financements] = await Promise.all([
+    beneficiaireRepository.calculerSituationFinanciere(beneficiaire.id),
+    attributionRepository.findByBeneficiaireId(beneficiaire.id),
+  ]);
+
+  return {
+    beneficiaire,
+    situation: {
+      nombreFinancements: situation.nb_attributions,
+      totalAttribue: Number(situation.total_attribue),
+      totalRembourse: Number(situation.total_rembourse),
+    },
+    financements: financements.map((f) => ({
+      id: f.id,
+      codeFinancement: f.code_financement,
+      montantAttribue: Number(f.montant_attribue),
+      montantFinancementTotal: Number(f.montant_financement),
+      dateAttribution: f.date_attribution,
+    })),
+  };
+}
+
+module.exports = { creer, consulterTous, consulterParId, modifier, recalculerStatutMMF, consulterMonCompte };

@@ -1,4 +1,5 @@
 const bcrypt = require('bcrypt');
+const db = require('../../../config/db');
 const utilisateurRepository = require('../../authentification/repository/utilisateur.repository');
 const autoriteRepository = require('../repository/autorite.repository');
 const Autorite = require('../model/autorite.model');
@@ -16,12 +17,30 @@ function erreur(message, statusCode) {
 }
 
 /**
+ * Un compte Autorite ne doit jamais être créé en libre-service : c'est
+ * la Responsable qui décide du critère (donc de ce que le délégué
+ * pourra voir). Vérifié ici, pas seulement caché côté frontend.
+ * @throws {Error} 403 si l'appelant n'est pas la Responsable
+ */
+async function verifierAppelantEstResponsable(utilisateurId) {
+  const [rows] = await db.query(
+    'SELECT id FROM responsable_fond_rotatif WHERE utilisateur_id = ? LIMIT 1',
+    [utilisateurId]
+  );
+  if (!rows[0]) {
+    throw erreur('Seule la Responsable du Fond Rotatif peut créer un compte délégué.', 403);
+  }
+}
+
+/**
  * Une Autorite hérite de Utilisateur, comme Beneficiaire/MembreComite :
  * création de la ligne utilisateur, puis de la ligne autorite liée.
  * Un seul des deux (domaine_id / valeur_critere) est attendu, selon
  * type_critere — validé en amont par le validator.
  */
-async function creer({ nom, prenom, sexe, telephone, email, mot_de_passe, photo, fonction, type_critere, domaine_id, valeur_critere }) {
+async function creer(utilisateurConnecteId, { nom, prenom, sexe, telephone, email, mot_de_passe, photo, fonction, type_critere, domaine_id, valeur_critere }) {
+  await verifierAppelantEstResponsable(utilisateurConnecteId);
+
   const existant = await utilisateurRepository.findByTelephone(telephone);
   if (existant) {
     throw erreur('Un utilisateur avec ce numéro de téléphone existe déjà.', 409);

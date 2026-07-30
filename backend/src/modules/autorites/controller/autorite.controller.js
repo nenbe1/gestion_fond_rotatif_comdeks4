@@ -2,7 +2,7 @@ const autoriteService = require('../service/autorite.service');
 
 async function creer(req, res) {
   try {
-    const autorite = await autoriteService.creer(req.body);
+    const autorite = await autoriteService.creer(req.utilisateurId, req.body);
     res.status(201).json({ autorite });
   } catch (erreur) {
     res.status(erreur.statusCode || 500).json({ message: erreur.message });

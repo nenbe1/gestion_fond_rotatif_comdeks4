@@ -25,6 +25,7 @@ export default function MiseEnPage() {
           <NavLink to="/financements">Financements</NavLink>
           <NavLink to="/demandes">Demandes de financement</NavLink>
           <NavLink to="/rapports">Rapports</NavLink>
+          <NavLink to="/autorites">Autorités</NavLink>
         </nav>
         <div className="pied-barre">
           <p>{utilisateur?.nom} {utilisateur?.prenom}</p>

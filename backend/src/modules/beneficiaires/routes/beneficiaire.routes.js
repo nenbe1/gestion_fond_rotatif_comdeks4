@@ -9,6 +9,7 @@ router.use(verifierToken); // toutes les routes de ce module nécessitent une co
 
 router.post('/', validerCreation, beneficiaireController.creer);
 router.get('/', beneficiaireController.consulterTous);
+router.get('/moi/compte', beneficiaireController.consulterMonCompte);
 router.get('/:id', beneficiaireController.consulterParId);
 router.put('/:id', validerModification, beneficiaireController.modifier);
 router.post('/:id/recalculer-statut', beneficiaireController.recalculerStatut);

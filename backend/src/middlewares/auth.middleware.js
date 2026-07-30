@@ -10,6 +10,7 @@ function verifierToken(req, res, next) {
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     req.utilisateurId = payload.id;
+    req.role = payload.role;
     next();
   } catch (erreur) {
     return res.status(401).json({ message: 'Token invalide ou expiré.' });

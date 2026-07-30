@@ -10,6 +10,7 @@ import DetailFinancement from './pages/DetailFinancement';
 import Demandes from './pages/Demandes';
 import DetailDemande from './pages/DetailDemande';
 import Rapports from './pages/Rapports';
+import Autorites from './pages/Autorites';
 import StatistiquesAutorite from './pages/StatistiquesAutorite';
 import './App.css';
 
@@ -103,6 +104,7 @@ function App() {
             <Route path="demandes" element={<Demandes />} />
             <Route path="demandes/:id" element={<DetailDemande />} />
             <Route path="rapports" element={<Rapports />} />
+            <Route path="autorites" element={<Autorites />} />
           </Route>
         </Routes>
       </BrowserRouter>
