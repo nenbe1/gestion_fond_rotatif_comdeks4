@@ -34,7 +34,7 @@ export default function ListeFinancementsScreen({ navigation }) {
       renderItem={({ item }) => (
         <TouchableOpacity
           style={styles.carte}
-          onPress={() => navigation.navigate('DetailFinancementRemboursements', {
+          onPress={() => navigation.navigate('DetailFinancementComite', {
             financementId: item.id,
             codeFinancement: item.codeFinancement,
             montantFinancement: item.montantFinancement,

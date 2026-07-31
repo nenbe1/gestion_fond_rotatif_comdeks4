@@ -53,7 +53,7 @@ export default function TableauDeBordComiteScreen({ navigation }) {
             <TouchableOpacity onPress={deconnecter}><Text style={styles.deconnexion}>Déconnexion</Text></TouchableOpacity>
           </View>
           <TouchableOpacity style={styles.lienRemboursements} onPress={() => navigation.navigate('ListeFinancements')}>
-            <Text style={styles.texteLienRemboursements}>Suivi des remboursements collectifs →</Text>
+            <Text style={styles.texteLienRemboursements}>Financements : répartition & remboursements →</Text>
           </TouchableOpacity>
         </View>
       }

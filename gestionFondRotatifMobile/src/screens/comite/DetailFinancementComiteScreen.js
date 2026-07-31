@@ -1,0 +1,259 @@
+import { useCallback, useState } from 'react';
+import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, RefreshControl, Alert, ActivityIndicator } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import appelerApi from '../../api/client';
+import { couleurs } from '../../theme/couleurs';
+
+/**
+ * Écran central du comité pour un financement : c'est ici qu'il
+ * répartit la somme reçue entre les bénéficiaires (chacun n'a jamais
+ * qu'une vue individuelle de sa propre part), et qu'il enregistre les
+ * remboursements qu'il collecte physiquement auprès de chacun d'eux.
+ * Le remboursement collectif au fonds (circuit de validation à part)
+ * est accessible depuis ici via un lien dédié.
+ */
+export default function DetailFinancementComiteScreen({ route, navigation }) {
+  const { financementId, codeFinancement, montantFinancement } = route.params;
+  const [attributions, setAttributions] = useState([]);
+  const [restants, setRestants] = useState({}); // { [attributionId]: resteAPayer }
+  const [chargement, setChargement] = useState(true);
+  const [erreur, setErreur] = useState('');
+
+  const [afficherFormulaireAttribution, setAfficherFormulaireAttribution] = useState(false);
+  const [beneficiaires, setBeneficiaires] = useState([]);
+  const [beneficiaireChoisiId, setBeneficiaireChoisiId] = useState('');
+  const [montantPart, setMontantPart] = useState('');
+  const [envoiEnCours, setEnvoiEnCours] = useState(false);
+
+  const [attributionEnRemboursement, setAttributionEnRemboursement] = useState(null); // id ou null
+  const [montantRembourse, setMontantRembourse] = useState('');
+
+  const charger = useCallback(async () => {
+    try {
+      const donnees = await appelerApi(`/attributions/financement/${financementId}`);
+      setAttributions(donnees.attributions);
+      const entries = await Promise.all(
+        donnees.attributions.map((a) =>
+          appelerApi(`/attributions/${a.id}/reste-a-payer`).then((r) => [a.id, r.resteAPayer])
+        )
+      );
+      setRestants(Object.fromEntries(entries));
+      setErreur('');
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setChargement(false);
+    }
+  }, [financementId]);
+
+  useFocusEffect(useCallback(() => { charger(); }, [charger]));
+
+  const montantDejaReparti = attributions.reduce((s, a) => s + Number(a.montantAttribue), 0);
+  const montantRestantARepartir = Number(montantFinancement) - montantDejaReparti;
+
+  async function ouvrirFormulaireAttribution() {
+    setAfficherFormulaireAttribution(true);
+    try {
+      const donnees = await appelerApi('/beneficiaires');
+      setBeneficiaires(donnees.beneficiaires);
+    } catch (err) {
+      Alert.alert('Erreur', err.message);
+    }
+  }
+
+  async function gererCreationAttribution() {
+    if (!beneficiaireChoisiId) {
+      Alert.alert('Erreur', 'Choisissez un bénéficiaire.');
+      return;
+    }
+    if (!montantPart || Number(montantPart) <= 0) {
+      Alert.alert('Erreur', 'Entrez un montant valide.');
+      return;
+    }
+    setEnvoiEnCours(true);
+    try {
+      await appelerApi('/attributions', {
+        method: 'POST',
+        body: {
+          financement_id: financementId,
+          beneficiaire_id: beneficiaireChoisiId,
+          montant_attribue: Number(montantPart),
+        },
+      });
+      setBeneficiaireChoisiId('');
+      setMontantPart('');
+      setAfficherFormulaireAttribution(false);
+      await charger();
+    } catch (err) {
+      Alert.alert('Erreur', err.message);
+    } finally {
+      setEnvoiEnCours(false);
+    }
+  }
+
+  async function gererEnregistrementRemboursement(attributionId) {
+    if (!montantRembourse || Number(montantRembourse) <= 0) {
+      Alert.alert('Erreur', 'Entrez un montant valide.');
+      return;
+    }
+    setEnvoiEnCours(true);
+    try {
+      await appelerApi('/remboursements/individuel', {
+        method: 'POST',
+        body: {
+          attribution_financement_id: attributionId,
+          montant: Number(montantRembourse),
+          date_versement: new Date().toISOString().slice(0, 10),
+        },
+      });
+      setMontantRembourse('');
+      setAttributionEnRemboursement(null);
+      await charger();
+    } catch (err) {
+      Alert.alert('Erreur', err.message);
+    } finally {
+      setEnvoiEnCours(false);
+    }
+  }
+
+  return (
+    <FlatList
+      style={styles.conteneur}
+      contentContainerStyle={styles.contenu}
+      data={attributions}
+      keyExtractor={(item) => String(item.id)}
+      refreshControl={<RefreshControl refreshing={chargement} onRefresh={charger} />}
+      ListHeaderComponent={
+        <View>
+          <Text style={styles.code}>{codeFinancement}</Text>
+          <Text style={styles.montant}>{Number(montantFinancement).toLocaleString('fr-FR')} FCFA au total</Text>
+          <Text style={styles.montantRestant}>
+            {montantRestantARepartir > 0
+              ? `${montantRestantARepartir.toLocaleString('fr-FR')} FCFA encore à répartir`
+              : 'Entièrement réparti'}
+          </Text>
+
+          {erreur ? <Text style={styles.erreur}>{erreur}</Text> : null}
+
+          {montantRestantARepartir > 0 && !afficherFormulaireAttribution && (
+            <TouchableOpacity style={styles.boutonAjouter} onPress={ouvrirFormulaireAttribution}>
+              <Text style={styles.texteBoutonAjouter}>+ Répartir à un bénéficiaire</Text>
+            </TouchableOpacity>
+          )}
+
+          {afficherFormulaireAttribution && (
+            <View style={styles.formulaire}>
+              <Text style={styles.libelleChamp}>Bénéficiaire</Text>
+              <FlatList
+                data={beneficiaires}
+                keyExtractor={(b) => String(b.id)}
+                style={{ maxHeight: 150 }}
+                renderItem={({ item: b }) => (
+                  <TouchableOpacity
+                    style={[styles.optionBeneficiaire, beneficiaireChoisiId === b.id && styles.optionBeneficiaireChoisie]}
+                    onPress={() => setBeneficiaireChoisiId(b.id)}
+                  >
+                    <Text style={beneficiaireChoisiId === b.id ? styles.texteOptionChoisie : styles.texteOption}>
+                      {b.nom} {b.prenom}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              />
+              <Text style={styles.libelleChamp}>Montant de sa part (FCFA)</Text>
+              <TextInput style={styles.champ} keyboardType="numeric" value={montantPart} onChangeText={setMontantPart} placeholder={`Max ${montantRestantARepartir.toLocaleString('fr-FR')}`} />
+              <View style={styles.actionsFormulaire}>
+                <TouchableOpacity style={styles.boutonAnnuler} onPress={() => setAfficherFormulaireAttribution(false)}>
+                  <Text style={styles.texteBoutonAnnuler}>Annuler</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.boutonValider} onPress={gererCreationAttribution} disabled={envoiEnCours}>
+                  {envoiEnCours ? <ActivityIndicator color={couleurs.blanc} /> : <Text style={styles.texteBoutonValider}>Valider</Text>}
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={styles.lienCollectif}
+            onPress={() => navigation.navigate('DetailFinancementRemboursements', { financementId, codeFinancement, montantFinancement })}
+          >
+            <Text style={styles.texteLienCollectif}>Remboursement collectif au fonds →</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.sousTitreListe}>Parts attribuées</Text>
+        </View>
+      }
+      renderItem={({ item }) => (
+        <View style={styles.carteBeneficiaire}>
+          <View style={styles.enteteCarteBeneficiaire}>
+            <Text style={styles.nomBeneficiaire}>{item.beneficiaireNom} {item.beneficiairePrenom}</Text>
+            <Text style={styles.partBeneficiaire}>{Number(item.montantAttribue).toLocaleString('fr-FR')} FCFA</Text>
+          </View>
+          <Text style={styles.resteBeneficiaire}>
+            Reste à percevoir de sa part : {(restants[item.id] ?? 0).toLocaleString('fr-FR')} FCFA
+          </Text>
+
+          {attributionEnRemboursement === item.id ? (
+            <View style={styles.formulaireInline}>
+              <TextInput
+                style={styles.champ}
+                keyboardType="numeric"
+                value={montantRembourse}
+                onChangeText={setMontantRembourse}
+                placeholder="Montant reçu (FCFA)"
+                autoFocus
+              />
+              <View style={styles.actionsFormulaire}>
+                <TouchableOpacity style={styles.boutonAnnuler} onPress={() => setAttributionEnRemboursement(null)}>
+                  <Text style={styles.texteBoutonAnnuler}>Annuler</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.boutonValider} onPress={() => gererEnregistrementRemboursement(item.id)} disabled={envoiEnCours}>
+                  {envoiEnCours ? <ActivityIndicator color={couleurs.blanc} /> : <Text style={styles.texteBoutonValider}>Valider</Text>}
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.boutonRembourser} onPress={() => setAttributionEnRemboursement(item.id)}>
+              <Text style={styles.texteBoutonRembourser}>Enregistrer un remboursement reçu</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+      ListEmptyComponent={!chargement ? <Text style={styles.vide}>Aucune part encore attribuée.</Text> : null}
+    />
+  );
+}
+
+const styles = StyleSheet.create({
+  conteneur: { flex: 1, backgroundColor: couleurs.creme },
+  contenu: { padding: 20 },
+  code: { fontSize: 14, color: '#888' },
+  montant: { fontSize: 16, fontWeight: '600', color: couleurs.vertMoyen, marginTop: 4 },
+  montantRestant: { fontSize: 13, color: couleurs.orMil, marginTop: 2, marginBottom: 16 },
+  erreur: { color: couleurs.brique, marginBottom: 12 },
+  boutonAjouter: { backgroundColor: couleurs.vertFonce, borderRadius: 8, padding: 12, alignItems: 'center', marginBottom: 16 },
+  texteBoutonAjouter: { color: couleurs.blanc, fontWeight: '600' },
+  formulaire: { backgroundColor: couleurs.blanc, borderRadius: 10, padding: 14, marginBottom: 16 },
+  formulaireInline: { marginTop: 10 },
+  libelleChamp: { fontSize: 13, color: couleurs.grisTexte, marginTop: 8, marginBottom: 4 },
+  champ: { borderWidth: 1, borderColor: couleurs.grisClair, borderRadius: 8, padding: 10, fontSize: 15 },
+  optionBeneficiaire: { padding: 10, borderRadius: 6, marginBottom: 4, backgroundColor: couleurs.creme },
+  optionBeneficiaireChoisie: { backgroundColor: couleurs.vertFonce },
+  texteOption: { color: couleurs.grisTexte },
+  texteOptionChoisie: { color: couleurs.blanc, fontWeight: '600' },
+  actionsFormulaire: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  boutonAnnuler: { flex: 1, padding: 10, alignItems: 'center', borderRadius: 8, borderWidth: 1, borderColor: couleurs.grisClair },
+  texteBoutonAnnuler: { color: couleurs.grisTexte },
+  boutonValider: { flex: 1, padding: 10, alignItems: 'center', borderRadius: 8, backgroundColor: couleurs.vertMoyen },
+  texteBoutonValider: { color: couleurs.blanc, fontWeight: '600' },
+  lienCollectif: { backgroundColor: couleurs.blanc, borderRadius: 8, padding: 12, marginBottom: 20 },
+  texteLienCollectif: { color: couleurs.vertFonce, fontWeight: '600', fontSize: 13 },
+  sousTitreListe: { fontSize: 15, fontWeight: '600', color: couleurs.grisTexte, marginBottom: 8 },
+  carteBeneficiaire: { backgroundColor: couleurs.blanc, borderRadius: 10, padding: 14, marginBottom: 10 },
+  enteteCarteBeneficiaire: { flexDirection: 'row', justifyContent: 'space-between' },
+  nomBeneficiaire: { fontWeight: '600', color: couleurs.grisTexte },
+  partBeneficiaire: { fontWeight: '700', color: couleurs.vertMoyen },
+  resteBeneficiaire: { fontSize: 12, color: '#888', marginTop: 4 },
+  boutonRembourser: { marginTop: 10, borderRadius: 6, borderWidth: 1, borderColor: couleurs.vertMoyen, padding: 8, alignItems: 'center' },
+  texteBoutonRembourser: { color: couleurs.vertMoyen, fontSize: 12, fontWeight: '600' },
+  vide: { textAlign: 'center', color: '#888', marginTop: 10 },
+});
