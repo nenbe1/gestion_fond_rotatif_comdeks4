@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import appelerApi from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
 import { couleurs } from '../../theme/couleurs';
 
 const LIBELLE_NIVEAU = { TRESORIER: 'Trésorier', COMMISSAIRE: 'Commissaire aux comptes', PRESIDENT: 'Président du comité' };
@@ -15,6 +16,7 @@ const LIBELLE_STATUT_ETAPE = { EnAttente: 'En attente', Approuve: 'Approuvé', R
  */
 export default function DetailCircuitRemboursementCollectifScreen({ route }) {
   const { remboursementCollectifId, numeroSemaine } = route.params;
+  const { utilisateur } = useAuth();
   const [remboursement, setRemboursement] = useState(null);
   const [circuit, setCircuit] = useState([]);
   const [chargement, setChargement] = useState(true);
@@ -61,6 +63,7 @@ export default function DetailCircuitRemboursementCollectifScreen({ route }) {
 
   function etapeTraitableMaintenant(etape, index) {
     if (etape.statut !== 'EnAttente') return false;
+    if (etape.niveau !== utilisateur?.fonctionCode) return false; // pas sa fonction, pas à lui de traiter
     if (index === 0) return true;
     return circuit[index - 1]?.statut === 'Approuve';
   }

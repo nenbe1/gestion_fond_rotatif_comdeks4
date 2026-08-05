@@ -2,85 +2,64 @@ import { useEffect, useState } from 'react';
 import appelerApi from '../api/client';
 
 /**
- * Page Bénéficiaires — liste tous les bénéficiaires et permet d'en créer
- * un nouveau (crée aussi son compte utilisateur, côté backend).
+ * Page Bénéficiaires — consultation uniquement. Les bénéficiaires sont
+ * créés exclusivement par les membres du comité, sur le Mobile, au
+ * moment où ils proposent une demande de financement (jamais depuis le
+ * Web) — pour garder la traçabilité de qui a enregistré qui, sur le
+ * terrain.
+ *
+ * AJOUT : filtre par canton (la Responsable voit tous les cantons,
+ * ce filtre lui permet de se concentrer sur un canton à la fois).
+ *
+ * CORRECTION : la liste des cantons du filtre vient maintenant de
+ * l'endpoint de référence /membres-comite/reference/cantons (tous les
+ * cantons existants), et non plus des seuls cantons déjà présents chez
+ * les bénéficiaires chargés — sinon un canton sans bénéficiaire pour
+ * l'instant (ex: Guinglaye, Mororo) n'apparaissait jamais dans le filtre.
  */
 export default function Beneficiaires() {
   const [beneficiaires, setBeneficiaires] = useState([]);
+  const [cantons, setCantons] = useState([]);
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState('');
-  const [afficherFormulaire, setAfficherFormulaire] = useState(false);
-  const [formulaire, setFormulaire] = useState({
-    nom: '', prenom: '', sexe: 'F', telephone: '', mot_de_passe: '',
-    age_estime: '', activite: '',
-  });
-  const [envoiEnCours, setEnvoiEnCours] = useState(false);
+  const [cantonSelectionne, setCantonSelectionne] = useState('');
 
-  async function chargerBeneficiaires() {
-    setChargement(true);
-    try {
-      const donnees = await appelerApi('/beneficiaires');
-      setBeneficiaires(donnees.beneficiaires);
-    } catch (err) {
-      setErreur(err.message);
-    } finally {
-      setChargement(false);
+  useEffect(() => {
+    async function charger() {
+      try {
+        const [donnees, c] = await Promise.all([
+          appelerApi('/beneficiaires'),
+          appelerApi('/membres-comite/reference/cantons'),
+        ]);
+        setBeneficiaires(donnees.beneficiaires);
+        setCantons(c.cantons);
+      } catch (err) {
+        setErreur(err.message);
+      } finally {
+        setChargement(false);
+      }
     }
-  }
+    charger();
+  }, []);
 
-  useEffect(() => { chargerBeneficiaires(); }, []);
-
-  function gererChangement(e) {
-    setFormulaire({ ...formulaire, [e.target.name]: e.target.value });
-  }
-
-  async function gererCreation(e) {
-    e.preventDefault();
-    setErreur('');
-    setEnvoiEnCours(true);
-    try {
-      await appelerApi('/beneficiaires', { method: 'POST', body: formulaire });
-      setAfficherFormulaire(false);
-      setFormulaire({ nom: '', prenom: '', sexe: 'F', telephone: '', mot_de_passe: '', age_estime: '', activite: '' });
-      await chargerBeneficiaires();
-    } catch (err) {
-      setErreur(err.message);
-    } finally {
-      setEnvoiEnCours(false);
-    }
-  }
+  const beneficiairesAffiches = cantonSelectionne
+    ? beneficiaires.filter((b) => String(b.cantonId) === String(cantonSelectionne))
+    : beneficiaires;
 
   return (
     <div>
       <div className="entete-page">
         <h1>Bénéficiaires</h1>
-        <button onClick={() => setAfficherFormulaire(!afficherFormulaire)}>
-          {afficherFormulaire ? 'Annuler' : '+ Nouveau bénéficiaire'}
-        </button>
+        <label>
+          Canton
+          <select value={cantonSelectionne} onChange={(e) => setCantonSelectionne(e.target.value)}>
+            <option value="">Tous les cantons</option>
+            {cantons.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+          </select>
+        </label>
       </div>
 
       {erreur && <p className="message-erreur">{erreur}</p>}
-
-      {afficherFormulaire && (
-        <form className="formulaire-carte" onSubmit={gererCreation}>
-          <div className="grille-formulaire">
-            <label>Nom <input name="nom" value={formulaire.nom} onChange={gererChangement} required /></label>
-            <label>Prénom <input name="prenom" value={formulaire.prenom} onChange={gererChangement} required /></label>
-            <label>
-              Sexe
-              <select name="sexe" value={formulaire.sexe} onChange={gererChangement}>
-                <option value="F">F</option>
-                <option value="M">M</option>
-              </select>
-            </label>
-            <label>Téléphone <input name="telephone" value={formulaire.telephone} onChange={gererChangement} required /></label>
-            <label>Mot de passe <input type="password" name="mot_de_passe" value={formulaire.mot_de_passe} onChange={gererChangement} required /></label>
-            <label>Âge estimé <input type="number" name="age_estime" value={formulaire.age_estime} onChange={gererChangement} /></label>
-            <label className="pleine-largeur">Activité <input name="activite" value={formulaire.activite} onChange={gererChangement} /></label>
-          </div>
-          <button type="submit" disabled={envoiEnCours}>{envoiEnCours ? 'Création...' : 'Créer le bénéficiaire'}</button>
-        </form>
-      )}
 
       {chargement ? (
         <p>Chargement...</p>
@@ -88,21 +67,23 @@ export default function Beneficiaires() {
         <table className="tableau">
           <thead>
             <tr>
-              <th>Nom</th><th>Prénom</th><th>Téléphone</th><th>Activité</th><th>Statut MMF</th>
+              <th>Nom</th><th>Prénom</th><th>Canton</th><th>Téléphone</th><th>Âge estimé</th><th>Activité</th><th>Statut MMF</th>
             </tr>
           </thead>
           <tbody>
-            {beneficiaires.map((b) => (
+            {beneficiairesAffiches.map((b) => (
               <tr key={b.id}>
                 <td>{b.nom}</td>
                 <td>{b.prenom}</td>
+                <td>{b.cantonNom || '—'}</td>
                 <td>{b.telephone}</td>
+                <td>{b.ageEstime ?? '—'}</td>
                 <td>{b.activite || '—'}</td>
                 <td><span className={`badge badge-${b.statutMMF}`}>{b.statutMMF}</span></td>
               </tr>
             ))}
-            {beneficiaires.length === 0 && (
-              <tr><td colSpan="5" className="vide">Aucun bénéficiaire pour l'instant.</td></tr>
+            {beneficiairesAffiches.length === 0 && (
+              <tr><td colSpan="7" className="vide">Aucun bénéficiaire pour ce canton.</td></tr>
             )}
           </tbody>
         </table>

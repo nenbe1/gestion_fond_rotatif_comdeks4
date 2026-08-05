@@ -15,7 +15,7 @@ function genererCodeUtilisateur() {
  * temps (créer la ligne utilisateur, puis la ligne beneficiaire liée),
  * mais reste une seule opération du point de vue de l'appelant.
  */
-async function creer({ nom, prenom, sexe, telephone, email, mot_de_passe, photo, age_estime, activite, latitude, longitude }) {
+async function creer({ nom, prenom, sexe, telephone, email, mot_de_passe, photo, canton_id, age_estime, activite, latitude, longitude }) {
   const existant = await utilisateurRepository.findByTelephone(telephone);
   if (existant) {
     const erreur = new Error('Un utilisateur avec ce numéro de téléphone existe déjà.');
@@ -38,6 +38,7 @@ async function creer({ nom, prenom, sexe, telephone, email, mot_de_passe, photo,
 
   const row = await beneficiaireRepository.create({
     utilisateur_id: utilisateur.id,
+    canton_id,
     age_estime,
     activite,
     latitude,
@@ -47,8 +48,8 @@ async function creer({ nom, prenom, sexe, telephone, email, mot_de_passe, photo,
   return Beneficiaire.fromRow(row);
 }
 
-async function consulterTous() {
-  const rows = await beneficiaireRepository.findAll();
+async function consulterTous(cantonId) {
+  const rows = await beneficiaireRepository.findAll({ cantonId });
   return rows.map(Beneficiaire.fromRow);
 }
 

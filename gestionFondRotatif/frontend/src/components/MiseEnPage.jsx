@@ -24,6 +24,7 @@ export default function MiseEnPage() {
           <NavLink to="/membres-comite">Membres du comité</NavLink>
           <NavLink to="/financements">Financements</NavLink>
           <NavLink to="/demandes">Demandes de financement</NavLink>
+          <NavLink to="/situation-cantons">Situation par canton</NavLink>
           <NavLink to="/rapports">Rapports</NavLink>
           <NavLink to="/autorites">Autorités</NavLink>
         </nav>

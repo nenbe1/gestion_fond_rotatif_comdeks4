@@ -10,10 +10,6 @@ const db = require('../../../config/db');
  * recalculé rétroactivement même si les données sous-jacentes changent.
  */
 
-/**
- * Nombre de bénéficiaires distincts ayant reçu une attribution de
- * financement sur la période (indicateur "couverture" du programme).
- */
 async function compterBeneficiairesPeriode(periodeDebut, periodeFin) {
   const [rows] = await db.query(
     `SELECT COUNT(DISTINCT beneficiaire_id) AS total
@@ -24,7 +20,6 @@ async function compterBeneficiairesPeriode(periodeDebut, periodeFin) {
   return rows[0].total;
 }
 
-/** Montant total décaissé (Financement) sur la période. */
 async function sommeFinanceePeriode(periodeDebut, periodeFin) {
   const [rows] = await db.query(
     `SELECT COALESCE(SUM(montant_financement), 0) AS total
@@ -35,10 +30,6 @@ async function sommeFinanceePeriode(periodeDebut, periodeFin) {
   return Number(rows[0].total);
 }
 
-/**
- * Montant total reversé au fonds (RemboursementCollectif confirmé) sur
- * la période — reflète la santé du fonds, pas le détail individuel.
- */
 async function sommeRembourseePeriode(periodeDebut, periodeFin) {
   const [rows] = await db.query(
     `SELECT COALESCE(SUM(montant_verse), 0) AS total
@@ -49,7 +40,6 @@ async function sommeRembourseePeriode(periodeDebut, periodeFin) {
   return Number(rows[0].total);
 }
 
-/** Nombre de remboursements collectifs en retard, échéance dans la période. */
 async function compterRetardsPeriode(periodeDebut, periodeFin) {
   const [rows] = await db.query(
     `SELECT COUNT(*) AS total
@@ -60,7 +50,6 @@ async function compterRetardsPeriode(periodeDebut, periodeFin) {
   return rows[0].total;
 }
 
-/** Persiste l'instantané calculé — jamais modifié après création. */
 async function create({
   periode_debut, periode_fin, nombre_beneficiaires, montant_total_finance,
   montant_total_rembourse, taux_remboursement, nombre_retards, genere_par,
@@ -89,7 +78,34 @@ async function findAll() {
   return rows;
 }
 
+// AJOUT : suppression d'un rapport. Rien d'autre en base ne référence
+// rapport_genere (voir commentaire de conception ci-dessus : c'est un
+// instantané autonome), donc un DELETE direct est sans risque pour
+// l'intégrité des autres données.
+async function supprimer(id) {
+  const [result] = await db.query('DELETE FROM rapport_genere WHERE id = ?', [id]);
+  return result.affectedRows > 0;
+}
+
+async function remboursementsParCanton() {
+  const [rows] = await db.query(`
+    SELECT
+      c.id AS canton_id,
+      c.nom AS canton_nom,
+      COALESCE(SUM(rc.montant_verse), 0) AS montant_rembourse,
+      COUNT(DISTINCT rc.id) AS nombre_remboursements
+    FROM canton c
+    LEFT JOIN membre_comite mc ON mc.canton_id = c.id
+    LEFT JOIN demande_financement d ON d.membre_comite_id = mc.id
+    LEFT JOIN financement f ON f.demande_financement_id = d.id
+    LEFT JOIN remboursement_collectif rc ON rc.financement_id = f.id AND rc.statut = 'Confirme'
+    GROUP BY c.id, c.nom
+    ORDER BY c.nom ASC
+  `);
+  return rows;
+}
+
 module.exports = {
   compterBeneficiairesPeriode, sommeFinanceePeriode, sommeRembourseePeriode,
-  compterRetardsPeriode, create, findById, findAll,
+  compterRetardsPeriode, create, findById, findAll, supprimer, remboursementsParCanton,
 };

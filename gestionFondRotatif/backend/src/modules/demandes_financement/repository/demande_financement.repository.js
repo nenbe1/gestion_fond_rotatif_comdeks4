@@ -5,15 +5,33 @@ const SELECT_BASE = `
     d.*,
     mc.utilisateur_id AS initiateur_utilisateur_id,
     v.nom AS vague_nom,
-    dom.nom AS domaine_nom
+    dom.nom AS domaine_nom,
+    c.id AS canton_id, c.nom AS canton_nom
   FROM demande_financement d
   INNER JOIN membre_comite mc ON mc.id = d.membre_comite_id
   INNER JOIN vague v ON v.id = d.vague_id
   INNER JOIN domaine dom ON dom.id = d.domaine_id
+  LEFT JOIN canton c ON c.id = mc.canton_id
 `;
 
-async function findAll() {
-  const [rows] = await db.query(`${SELECT_BASE} ORDER BY d.date_creation DESC`);
+// CORRECTION : ajout du parametre exclureEnCours. Quand il est a true
+// (cas de la Responsable), les demandes encore "EnCours" (circuit du
+// comite pas termine) ne sont jamais renvoyees par la base - ce n'est
+// plus seulement filtre cote frontend, donc impossible a contourner.
+async function findAll({ cantonId, exclureEnCours } = {}) {
+  const conditions = [];
+  const parametres = [];
+
+  if (cantonId) {
+    conditions.push('mc.canton_id = ?');
+    parametres.push(cantonId);
+  }
+  if (exclureEnCours) {
+    conditions.push("d.statut_global != 'EnCours'");
+  }
+
+  const clauseWhere = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const [rows] = await db.query(`${SELECT_BASE} ${clauseWhere} ORDER BY d.date_creation DESC`, parametres);
   return rows;
 }
 

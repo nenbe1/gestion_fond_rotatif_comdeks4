@@ -7,6 +7,8 @@ class DemandeFinancement {
     this.vagueNom = row.vague_nom;
     this.domaineId = row.domaine_id;
     this.domaineNom = row.domaine_nom;
+    this.cantonNom = row.canton_nom;
+    this.cantonId = row.canton_id;
     this.objetDemande = row.objet_demande;
     this.resultatAttendu = row.resultat_attendu;
     this.periodePrevisionnelle = row.periode_previsionnelle;

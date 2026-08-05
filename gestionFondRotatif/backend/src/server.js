@@ -21,6 +21,7 @@ app.use('/api/programmes', require('./modules/programmes/routes/programme.routes
 app.use('/api/fond-rotatif', require('./modules/fond_rotatif/routes/fond_rotatif.routes'));
 app.use('/api/rapports', require('./modules/rapports/routes/rapport.routes'));
 app.use('/api/autorites', require('./modules/autorites/routes/autorite.routes'));
+app.use('/api/parametres', require('./modules/parametrage/routes/parametre.routes'));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'mmf-backend' });

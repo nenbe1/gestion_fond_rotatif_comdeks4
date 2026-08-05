@@ -4,8 +4,16 @@ import appelerApi from '../api/client';
 /**
  * Page Membres du comité — liste tous les membres et permet d'en créer
  * un nouveau (crée aussi son compte utilisateur, comme pour les
- * bénéficiaires). Nécessaire pour ne plus dépendre de Postman/SQL pour
- * créer un trésorier, un commissaire, un président de comité, etc.
+ * bénéficiaires).
+ *
+ * CORRECTION : le formulaire "Modifier" permet maintenant de corriger
+ * nom / prénom / téléphone en plus de fonction / canton (avant, seuls
+ * fonction et canton étaient modifiables).
+ *
+ * "Désactiver"/"Réactiver" par ligne — passe par PUT /membres-comite/:id.
+ * On ne supprime jamais un membre du comité (il est référencé par ses
+ * demandes/validations passées) — on le désactive, ce qui le retire des
+ * listes actives sans casser l'historique.
  */
 export default function MembresComite() {
   const [membres, setMembres] = useState([]);
@@ -14,11 +22,19 @@ export default function MembresComite() {
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState('');
   const [afficherFormulaire, setAfficherFormulaire] = useState(false);
+  const [voirMotDePasse, setVoirMotDePasse] = useState(false);
   const [formulaire, setFormulaire] = useState({
     nom: '', prenom: '', sexe: 'M', telephone: '', mot_de_passe: '',
     fonction_id: '', canton_id: '',
   });
   const [envoiEnCours, setEnvoiEnCours] = useState(false);
+
+  const [membreEnEditionId, setMembreEnEditionId] = useState(null);
+  const [formulaireEdition, setFormulaireEdition] = useState({
+    nom: '', prenom: '', telephone: '', fonction_id: '', canton_id: '',
+  });
+  const [envoiEditionEnCours, setEnvoiEditionEnCours] = useState(false);
+  const [bascculeActifEnCoursId, setBasculeActifEnCoursId] = useState(null);
 
   async function chargerDonnees() {
     setChargement(true);
@@ -51,12 +67,67 @@ export default function MembresComite() {
     try {
       await appelerApi('/membres-comite', { method: 'POST', body: formulaire });
       setAfficherFormulaire(false);
+      setVoirMotDePasse(false);
       setFormulaire({ nom: '', prenom: '', sexe: 'M', telephone: '', mot_de_passe: '', fonction_id: '', canton_id: '' });
       await chargerDonnees();
     } catch (err) {
       setErreur(err.message);
     } finally {
       setEnvoiEnCours(false);
+    }
+  }
+
+  function ouvrirEdition(membre) {
+    setMembreEnEditionId(membre.id);
+    setFormulaireEdition({
+      nom: membre.nom,
+      prenom: membre.prenom,
+      telephone: membre.telephone,
+      fonction_id: membre.fonctionId,
+      canton_id: membre.cantonId,
+    });
+  }
+
+  async function gererEnregistrementEdition(e, membre) {
+    e.preventDefault();
+    setErreur('');
+    setEnvoiEditionEnCours(true);
+    try {
+      await appelerApi(`/membres-comite/${membre.id}`, {
+        method: 'PUT',
+        body: { ...formulaireEdition, actif: membre.actif },
+      });
+      setMembreEnEditionId(null);
+      await chargerDonnees();
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setEnvoiEditionEnCours(false);
+    }
+  }
+
+  async function gererBasculeActif(membre) {
+    const nouvelEtat = !membre.actif;
+    const message = nouvelEtat
+      ? 'Réactiver ce membre du comité ?'
+      : 'Désactiver ce membre du comité ? Il ne pourra plus se connecter, mais son historique reste conservé.';
+    if (!window.confirm(message)) return;
+
+    setErreur('');
+    setBasculeActifEnCoursId(membre.id);
+    try {
+      await appelerApi(`/membres-comite/${membre.id}`, {
+        method: 'PUT',
+        body: {
+          nom: membre.nom, prenom: membre.prenom, telephone: membre.telephone,
+          fonction_id: membre.fonctionId, canton_id: membre.cantonId, actif: nouvelEtat,
+        },
+      });
+      await chargerDonnees();
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setBasculeActifEnCoursId(null);
     }
   }
 
@@ -84,7 +155,27 @@ export default function MembresComite() {
               </select>
             </label>
             <label>Téléphone <input name="telephone" value={formulaire.telephone} onChange={gererChangement} required /></label>
-            <label>Mot de passe <input type="password" name="mot_de_passe" value={formulaire.mot_de_passe} onChange={gererChangement} required /></label>
+            <label>
+              Mot de passe
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <input
+                  type={voirMotDePasse ? 'text' : 'password'}
+                  name="mot_de_passe"
+                  value={formulaire.mot_de_passe}
+                  onChange={gererChangement}
+                  required
+                  style={{ flex: 1 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setVoirMotDePasse(!voirMotDePasse)}
+                  title={voirMotDePasse ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem' }}
+                >
+                  {voirMotDePasse ? '🙈' : '👁️'}
+                </button>
+              </div>
+            </label>
             <label>
               Fonction
               <select name="fonction_id" value={formulaire.fonction_id} onChange={gererChangement} required>
@@ -110,22 +201,80 @@ export default function MembresComite() {
         <table className="tableau">
           <thead>
             <tr>
-              <th>Nom</th><th>Prénom</th><th>Fonction</th><th>Canton</th><th>Téléphone</th><th>Actif</th>
+              <th>Nom</th><th>Prénom</th><th>Fonction</th><th>Canton</th><th>Téléphone</th><th>Actif</th><th></th>
             </tr>
           </thead>
           <tbody>
             {membres.map((m) => (
               <tr key={m.id}>
-                <td>{m.nom}</td>
-                <td>{m.prenom}</td>
-                <td>{m.fonctionLibelle}</td>
-                <td>{m.cantonNom}</td>
-                <td>{m.telephone}</td>
-                <td>{m.actif ? '✅' : '❌'}</td>
+                {membreEnEditionId === m.id ? (
+                  <>
+                    <td>
+                      <input
+                        value={formulaireEdition.nom}
+                        onChange={(e) => setFormulaireEdition({ ...formulaireEdition, nom: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        value={formulaireEdition.prenom}
+                        onChange={(e) => setFormulaireEdition({ ...formulaireEdition, prenom: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <select
+                        value={formulaireEdition.fonction_id}
+                        onChange={(e) => setFormulaireEdition({ ...formulaireEdition, fonction_id: e.target.value })}
+                      >
+                        {fonctions.map((f) => <option key={f.id} value={f.id}>{f.libelle}</option>)}
+                      </select>
+                    </td>
+                    <td>
+                      <select
+                        value={formulaireEdition.canton_id}
+                        onChange={(e) => setFormulaireEdition({ ...formulaireEdition, canton_id: e.target.value })}
+                      >
+                        {cantons.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+                      </select>
+                    </td>
+                    <td>
+                      <input
+                        value={formulaireEdition.telephone}
+                        onChange={(e) => setFormulaireEdition({ ...formulaireEdition, telephone: e.target.value })}
+                      />
+                    </td>
+                    <td>{m.actif ? '✅' : '❌'}</td>
+                    <td className="actions-ligne">
+                      <button disabled={envoiEditionEnCours} onClick={(e) => gererEnregistrementEdition(e, m)}>
+                        {envoiEditionEnCours ? 'Enregistrement...' : 'Enregistrer'}
+                      </button>
+                      <button type="button" onClick={() => setMembreEnEditionId(null)}>Annuler</button>
+                    </td>
+                  </>
+                ) : (
+                  <>
+                    <td>{m.nom}</td>
+                    <td>{m.prenom}</td>
+                    <td>{m.fonctionLibelle}</td>
+                    <td>{m.cantonNom}</td>
+                    <td>{m.telephone}</td>
+                    <td>{m.actif ? '✅' : '❌'}</td>
+                    <td className="actions-ligne">
+                      <button onClick={() => ouvrirEdition(m)}>Modifier</button>
+                      <button
+                        className={m.actif ? 'bouton-danger' : ''}
+                        disabled={bascculeActifEnCoursId === m.id}
+                        onClick={() => gererBasculeActif(m)}
+                      >
+                        {bascculeActifEnCoursId === m.id ? '...' : (m.actif ? 'Désactiver' : 'Réactiver')}
+                      </button>
+                    </td>
+                  </>
+                )}
               </tr>
             ))}
             {membres.length === 0 && (
-              <tr><td colSpan="6" className="vide">Aucun membre du comité pour l'instant.</td></tr>
+              <tr><td colSpan="7" className="vide">Aucun membre du comité pour l'instant.</td></tr>
             )}
           </tbody>
         </table>

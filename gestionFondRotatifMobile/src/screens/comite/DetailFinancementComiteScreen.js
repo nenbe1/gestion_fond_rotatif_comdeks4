@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, RefreshControl, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, ScrollView, TextInput, TouchableOpacity, StyleSheet, RefreshControl, Alert, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import appelerApi from '../../api/client';
 import { couleurs } from '../../theme/couleurs';
@@ -144,12 +144,10 @@ export default function DetailFinancementComiteScreen({ route, navigation }) {
           {afficherFormulaireAttribution && (
             <View style={styles.formulaire}>
               <Text style={styles.libelleChamp}>Bénéficiaire</Text>
-              <FlatList
-                data={beneficiaires}
-                keyExtractor={(b) => String(b.id)}
-                style={{ maxHeight: 150 }}
-                renderItem={({ item: b }) => (
+              <ScrollView style={{ maxHeight: 150 }} nestedScrollEnabled>
+                {beneficiaires.map((b) => (
                   <TouchableOpacity
+                    key={b.id}
                     style={[styles.optionBeneficiaire, beneficiaireChoisiId === b.id && styles.optionBeneficiaireChoisie]}
                     onPress={() => setBeneficiaireChoisiId(b.id)}
                   >
@@ -157,8 +155,8 @@ export default function DetailFinancementComiteScreen({ route, navigation }) {
                       {b.nom} {b.prenom}
                     </Text>
                   </TouchableOpacity>
-                )}
-              />
+                ))}
+              </ScrollView>
               <Text style={styles.libelleChamp}>Montant de sa part (FCFA)</Text>
               <TextInput style={styles.champ} keyboardType="numeric" value={montantPart} onChangeText={setMontantPart} placeholder={`Max ${montantRestantARepartir.toLocaleString('fr-FR')}`} />
               <View style={styles.actionsFormulaire}>

@@ -6,6 +6,8 @@ class Beneficiaire {
   constructor(row) {
     this.id = row.id;
     this.utilisateurId = row.utilisateur_id;
+    this.cantonId = row.canton_id;
+    this.cantonNom = row.canton_nom;
     this.codeUtilisateur = row.code_utilisateur;
     this.nom = row.nom;
     this.prenom = row.prenom;

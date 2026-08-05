@@ -248,3 +248,12 @@ Enum autorite_type_critere {
   SEXE
   AGE_MAX
 }
+
+Table demande_beneficiaire_prevu {
+  id bigint [pk, increment]
+  demande_financement_id bigint [not null, ref: > demande_financement.id]
+  beneficiaire_id bigint [ref: > beneficiaire.id, note: 'beneficiaire deja enregistre']
+  nom_libre varchar(150) [note: 'saisie libre si pas encore enregistre -- un seul des deux renseigne']
+
+  Note: 'Liste des beneficiaires vises fournie par le comite au moment de la demande, sans montant a ce stade'
+}

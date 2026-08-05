@@ -47,6 +47,17 @@ button {
 button:hover:not(:disabled) { opacity: 0.85; }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
 button.bouton-danger { background: var(--brique); }
+button.bouton-petit { padding: 0.35rem 0.7rem; font-size: 0.78rem; }
+
+/* Groupe d'actions dans une cellule de tableau (liens + boutons) : évite
+   qu'ils se chevauchent en les espaçant et en les laissant passer à la
+   ligne si la colonne est trop étroite. */
+.actions-ligne {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
 
 input, select, textarea {
   width: 100%;

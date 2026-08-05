@@ -27,6 +27,16 @@ async function consulterParId(req, res) {
   }
 }
 
+/** PUT /api/autorites/:id — modifier une autorité (Responsable uniquement). */
+async function modifier(req, res) {
+  try {
+    const autorite = await autoriteService.modifier(req.utilisateurId, req.params.id, req.body);
+    res.status(200).json({ autorite });
+  } catch (erreur) {
+    res.status(erreur.statusCode || 500).json({ message: erreur.message });
+  }
+}
+
 /** GET /api/autorites/moi/statistiques — statistiques du délégué connecté uniquement. */
 async function consulterMesStatistiques(req, res) {
   try {
@@ -37,4 +47,4 @@ async function consulterMesStatistiques(req, res) {
   }
 }
 
-module.exports = { creer, consulterTous, consulterParId, consulterMesStatistiques };
+module.exports = { creer, consulterTous, consulterParId, modifier, consulterMesStatistiques };

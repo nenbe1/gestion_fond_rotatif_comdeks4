@@ -1,5 +1,7 @@
 const db = require('../../../config/db');
 const attributionRepository = require('../repository/attribution.repository');
+const financementRepository = require('../../financements/repository/financement.repository');
+const beneficiaireRepository = require('../../beneficiaires/repository/beneficiaire.repository');
 const AttributionFinancement = require('../model/attribution.model');
 
 function erreur(message, statusCode) {
@@ -21,10 +23,27 @@ async function getFinancement(financementId) {
  * des attributions ne dépasse jamais le montant total du financement, et
  * qu'un même bénéficiaire ne peut recevoir qu'une seule attribution par
  * financement (contrainte UNIQUE déjà posée en base).
+ *
+ * Cloisonnement par canton (défense en profondeur — la liste des
+ * bénéficiaires proposée côté Mobile est déjà filtrée par canton, mais
+ * on revérifie ici au cas où l'appel API serait fait directement) : le
+ * financement ET le bénéficiaire doivent appartenir au même canton que
+ * le comité qui répartit.
  */
-async function creer({ financement_id, beneficiaire_id, montant_attribue }) {
+async function creer({ financement_id, beneficiaire_id, montant_attribue }, cantonIdAppelant) {
   const financement = await getFinancement(financement_id);
   if (!financement) throw erreur('Financement introuvable.', 404);
+
+  if (cantonIdAppelant) {
+    const cantonFinancement = await financementRepository.trouverCantonId(financement_id);
+    if (cantonFinancement !== null && cantonFinancement !== cantonIdAppelant) {
+      throw erreur('Ce financement appartient à un autre canton.', 403);
+    }
+    const beneficiaire = await beneficiaireRepository.findById(beneficiaire_id);
+    if (beneficiaire?.canton_id && beneficiaire.canton_id !== cantonIdAppelant) {
+      throw erreur('Ce bénéficiaire appartient à un autre canton.', 403);
+    }
+  }
 
   const existant = await attributionRepository.findByFinancementEtBeneficiaire(financement_id, beneficiaire_id);
   if (existant) throw erreur('Ce bénéficiaire a déjà une attribution sur ce financement.', 409);

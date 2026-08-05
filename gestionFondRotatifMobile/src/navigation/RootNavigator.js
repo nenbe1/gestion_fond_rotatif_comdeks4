@@ -6,6 +6,7 @@ import { couleurs } from '../theme/couleurs';
 
 import ConnexionScreen from '../screens/ConnexionScreen';
 import TableauDeBordComiteScreen from '../screens/comite/TableauDeBordComiteScreen';
+import CreerDemandeScreen from '../screens/comite/CreerDemandeScreen';
 import DetailDemandeComiteScreen from '../screens/comite/DetailDemandeComiteScreen';
 import ListeFinancementsScreen from '../screens/comite/ListeFinancementsScreen';
 import DetailFinancementComiteScreen from '../screens/comite/DetailFinancementComiteScreen';
@@ -21,6 +22,7 @@ function PileComite() {
   return (
     <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: couleurs.vertFonce }, headerTintColor: couleurs.blanc }}>
       <Stack.Screen name="TableauDeBord" component={TableauDeBordComiteScreen} options={{ title: 'Demandes de financement' }} />
+      <Stack.Screen name="CreerDemande" component={CreerDemandeScreen} options={{ title: 'Nouvelle demande' }} />
       <Stack.Screen name="DetailDemande" component={DetailDemandeComiteScreen} options={{ title: 'Détail de la demande' }} />
       <Stack.Screen name="ListeFinancements" component={ListeFinancementsScreen} options={{ title: 'Remboursements collectifs' }} />
       <Stack.Screen name="DetailFinancementComite" component={DetailFinancementComiteScreen} options={{ title: 'Répartition du financement' }} />

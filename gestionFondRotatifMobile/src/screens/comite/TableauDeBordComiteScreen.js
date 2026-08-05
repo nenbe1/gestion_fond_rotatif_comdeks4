@@ -52,6 +52,9 @@ export default function TableauDeBordComiteScreen({ navigation }) {
             <Text style={styles.titre} numberOfLines={1} adjustsFontSizeToFit>Demandes</Text>
             <TouchableOpacity onPress={deconnecter}><Text style={styles.deconnexion}>Déconnexion</Text></TouchableOpacity>
           </View>
+          <TouchableOpacity style={styles.boutonNouvelleDemande} onPress={() => navigation.navigate('CreerDemande')}>
+            <Text style={styles.texteBoutonNouvelleDemande}>+ Nouvelle demande de financement</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.lienRemboursements} onPress={() => navigation.navigate('ListeFinancements')}>
             <Text style={styles.texteLienRemboursements}>Financements : répartition & remboursements →</Text>
           </TouchableOpacity>
@@ -84,6 +87,8 @@ const styles = StyleSheet.create({
   contenu: { padding: 20 },
   entete: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   lienRemboursements: { backgroundColor: couleurs.blanc, borderRadius: 8, padding: 12, marginBottom: 16 },
+  boutonNouvelleDemande: { backgroundColor: couleurs.vertFonce, borderRadius: 8, padding: 12, marginBottom: 10 },
+  texteBoutonNouvelleDemande: { color: couleurs.blanc, fontWeight: '600', fontSize: 13, textAlign: 'center' },
   texteLienRemboursements: { color: couleurs.vertFonce, fontWeight: '600', fontSize: 13 },
   titre: { flex: 1, fontSize: 20, fontWeight: '700', color: couleurs.vertFonce, marginRight: 10 },
   deconnexion: { color: couleurs.brique, fontSize: 13, flexShrink: 0 },

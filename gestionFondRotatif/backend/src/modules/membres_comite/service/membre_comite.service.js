@@ -54,8 +54,29 @@ async function consulterParId(id) {
   return MembreComite.fromRow(row);
 }
 
-async function modifier(id, { fonction_id, canton_id, actif }) {
-  await consulterParId(id);
+// CORRECTION : modifier() gère maintenant aussi nom / prenom / sexe /
+// telephone / email (table utilisateur), en plus de fonction_id /
+// canton_id / actif (table membre_comite) — avant, seuls ces deux
+// derniers étaient modifiables, impossible de corriger une faute de
+// saisie sur le nom ou changer un numéro de téléphone.
+async function modifier(id, { nom, prenom, sexe, telephone, email, fonction_id, canton_id, actif }) {
+  const membreActuel = await consulterParId(id);
+
+  if (telephone && telephone !== membreActuel.telephone) {
+    const existant = await utilisateurRepository.findByTelephone(telephone);
+    if (existant && existant.id !== membreActuel.utilisateurId) {
+      throw erreur('Un utilisateur avec ce numéro de téléphone existe déjà.', 409);
+    }
+  }
+
+  await utilisateurRepository.update(membreActuel.utilisateurId, {
+    nom: nom ?? membreActuel.nom,
+    prenom: prenom ?? membreActuel.prenom,
+    sexe: sexe ?? membreActuel.sexe,
+    telephone: telephone ?? membreActuel.telephone,
+    email: email ?? membreActuel.email,
+  });
+
   const row = await membreComiteRepository.update(id, { fonction_id, canton_id, actif });
   return MembreComite.fromRow(row);
 }
@@ -68,10 +89,6 @@ async function listerCantons() {
   return membreComiteRepository.findAllCantons();
 }
 
-/**
- * Crée un nouveau canton (donnée de référence, module Paramétrage).
- * @param {{nom: string, latitude?: number, longitude?: number}} data
- */
 async function creerCanton({ nom, latitude, longitude }) {
   if (!nom || nom.trim().length < 2) {
     throw erreur('Le nom du canton est requis.', 400);

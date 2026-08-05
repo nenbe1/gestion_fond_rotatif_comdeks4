@@ -15,9 +15,13 @@ const LIBELLE_TYPE_CRITERE = {
 /**
  * Page Autorités — délégués institutionnels (Jeunesse, Femmes,
  * Agriculture...) avec un accès Web dédié, en lecture seule, à des
- * statistiques globales filtrées par un seul critère. Créés uniquement
- * par la Responsable (jamais en libre-service : le critère détermine
- * quelles données sensibles le compte pourra consulter).
+ * statistiques globales filtrées par un seul critère. Créés et modifiés
+ * uniquement par la Responsable (jamais en libre-service : le critère
+ * détermine quelles données sensibles le compte pourra consulter).
+ *
+ * AJOUT : Modifier (nom/prénom/téléphone/fonction/critère) et Désactiver/
+ * Réactiver par ligne. On ne supprime jamais un délégué (il reste
+ * référencé), on le désactive.
  */
 export default function Autorites() {
   const [autorites, setAutorites] = useState([]);
@@ -27,6 +31,11 @@ export default function Autorites() {
   const [afficherFormulaire, setAfficherFormulaire] = useState(false);
   const [formulaire, setFormulaire] = useState(FORMULAIRE_VIDE);
   const [envoiEnCours, setEnvoiEnCours] = useState(false);
+
+  const [autoriteEnEditionId, setAutoriteEnEditionId] = useState(null);
+  const [formulaireEdition, setFormulaireEdition] = useState(null);
+  const [envoiEditionEnCours, setEnvoiEditionEnCours] = useState(false);
+  const [bascculeActifEnCoursId, setBasculeActifEnCoursId] = useState(null);
 
   async function chargerDonnees() {
     setChargement(true);
@@ -49,8 +58,6 @@ export default function Autorites() {
   function gererChangement(e) {
     const { name, value } = e.target;
     if (name === 'type_critere') {
-      // Changer de type de critère réinitialise les valeurs de l'ancien,
-      // pour ne jamais envoyer domaine_id ET valeur_critere en même temps.
       setFormulaire({ ...formulaire, type_critere: value, domaine_id: '', valeur_critere: '' });
     } else {
       setFormulaire({ ...formulaire, [name]: value });
@@ -77,6 +84,67 @@ export default function Autorites() {
     if (a.typeCritere === 'DOMAINE') return `Domaine : ${a.domaineNom ?? '—'}`;
     if (a.typeCritere === 'SEXE') return `Sexe : ${a.valeurCritere}`;
     return `Âge <= ${a.valeurCritere} ans`;
+  }
+
+  function ouvrirEdition(a) {
+    setAutoriteEnEditionId(a.id);
+    setFormulaireEdition({
+      nom: a.nom, prenom: a.prenom, telephone: a.telephone, fonction: a.fonction,
+      type_critere: a.typeCritere, domaine_id: a.domaineId || '', valeur_critere: a.valeurCritere || '',
+    });
+  }
+
+  function gererChangementEdition(e) {
+    const { name, value } = e.target;
+    if (name === 'type_critere') {
+      setFormulaireEdition({ ...formulaireEdition, type_critere: value, domaine_id: '', valeur_critere: '' });
+    } else {
+      setFormulaireEdition({ ...formulaireEdition, [name]: value });
+    }
+  }
+
+  async function gererEnregistrementEdition(e, a) {
+    e.preventDefault();
+    setErreur('');
+    setEnvoiEditionEnCours(true);
+    try {
+      await appelerApi(`/autorites/${a.id}`, {
+        method: 'PUT',
+        body: { ...formulaireEdition, actif: a.actif },
+      });
+      setAutoriteEnEditionId(null);
+      await chargerDonnees();
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setEnvoiEditionEnCours(false);
+    }
+  }
+
+  async function gererBasculeActif(a) {
+    const nouvelEtat = !a.actif;
+    const message = nouvelEtat
+      ? 'Réactiver ce délégué ?'
+      : 'Désactiver ce délégué ? Il ne pourra plus se connecter, mais son historique reste conservé.';
+    if (!window.confirm(message)) return;
+
+    setErreur('');
+    setBasculeActifEnCoursId(a.id);
+    try {
+      await appelerApi(`/autorites/${a.id}`, {
+        method: 'PUT',
+        body: {
+          nom: a.nom, prenom: a.prenom, telephone: a.telephone, fonction: a.fonction,
+          type_critere: a.typeCritere, domaine_id: a.domaineId, valeur_critere: a.valeurCritere,
+          actif: nouvelEtat,
+        },
+      });
+      await chargerDonnees();
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setBasculeActifEnCoursId(null);
+    }
   }
 
   return (
@@ -155,21 +223,76 @@ export default function Autorites() {
         <table className="tableau">
           <thead>
             <tr>
-              <th>Nom</th><th>Prénom</th><th>Téléphone</th><th>Fonction</th><th>Critère</th>
+              <th>Nom</th><th>Prénom</th><th>Téléphone</th><th>Fonction</th><th>Critère</th><th>Actif</th><th></th>
             </tr>
           </thead>
           <tbody>
             {autorites.map((a) => (
               <tr key={a.id}>
-                <td>{a.nom}</td>
-                <td>{a.prenom}</td>
-                <td>{a.telephone}</td>
-                <td>{a.fonction}</td>
-                <td>{libelleCritere(a)}</td>
+                {autoriteEnEditionId === a.id ? (
+                  <>
+                    <td><input value={formulaireEdition.nom} onChange={(e) => setFormulaireEdition({ ...formulaireEdition, nom: e.target.value })} /></td>
+                    <td><input value={formulaireEdition.prenom} onChange={(e) => setFormulaireEdition({ ...formulaireEdition, prenom: e.target.value })} /></td>
+                    <td><input value={formulaireEdition.telephone} onChange={(e) => setFormulaireEdition({ ...formulaireEdition, telephone: e.target.value })} /></td>
+                    <td><input value={formulaireEdition.fonction} onChange={(e) => setFormulaireEdition({ ...formulaireEdition, fonction: e.target.value })} /></td>
+                    <td>
+                      <select name="type_critere" value={formulaireEdition.type_critere} onChange={gererChangementEdition}>
+                        {Object.entries(LIBELLE_TYPE_CRITERE).map(([valeur, libelle]) => (
+                          <option key={valeur} value={valeur}>{libelle}</option>
+                        ))}
+                      </select>
+                      {formulaireEdition.type_critere === 'DOMAINE' && (
+                        <select name="domaine_id" value={formulaireEdition.domaine_id} onChange={gererChangementEdition} required>
+                          <option value="">-- Domaine --</option>
+                          {domaines.map((d) => <option key={d.id} value={d.id}>{d.nom}</option>)}
+                        </select>
+                      )}
+                      {formulaireEdition.type_critere === 'SEXE' && (
+                        <select name="valeur_critere" value={formulaireEdition.valeur_critere} onChange={gererChangementEdition} required>
+                          <option value="">-- Sexe --</option>
+                          <option value="F">F</option>
+                          <option value="M">M</option>
+                        </select>
+                      )}
+                      {formulaireEdition.type_critere === 'AGE_MAX' && (
+                        <input
+                          type="number" min="1" name="valeur_critere"
+                          value={formulaireEdition.valeur_critere} onChange={gererChangementEdition} required
+                        />
+                      )}
+                    </td>
+                    <td>{a.actif ? '✅' : '❌'}</td>
+                    <td className="actions-ligne">
+                      <button disabled={envoiEditionEnCours} onClick={(e) => gererEnregistrementEdition(e, a)}>
+                        {envoiEditionEnCours ? 'Enregistrement...' : 'Enregistrer'}
+                      </button>
+                      <button type="button" onClick={() => setAutoriteEnEditionId(null)}>Annuler</button>
+                    </td>
+                  </>
+                ) : (
+                  <>
+                    <td>{a.nom}</td>
+                    <td>{a.prenom}</td>
+                    <td>{a.telephone}</td>
+                    <td>{a.fonction}</td>
+                    <td>{libelleCritere(a)}</td>
+                    <td>{a.actif ? '✅' : '❌'}</td>
+                    <td className="actions-ligne">
+                      <button onClick={() => ouvrirEdition(a)}>Modifier</button>
+                      <button
+                        className={a.actif ? 'bouton-danger' : ''}
+                        disabled={bascculeActifEnCoursId === a.id}
+                        onClick={() => gererBasculeActif(a)}
+                      >
+                        {bascculeActifEnCoursId === a.id ? '...' : (a.actif ? 'Désactiver' : 'Réactiver')}
+                      </button>
+                    </td>
+                  </>
+                )}
               </tr>
             ))}
             {autorites.length === 0 && (
-              <tr><td colSpan="5" className="vide">Aucun délégué pour l'instant.</td></tr>
+              <tr><td colSpan="7" className="vide">Aucun délégué pour l'instant.</td></tr>
             )}
           </tbody>
         </table>

@@ -1,8 +1,10 @@
 const remboursementService = require('../service/remboursement.service');
+const membreComiteRepository = require('../../membres_comite/repository/membre_comite.repository');
 
 async function creerIndividuel(req, res) {
   try {
-    const remboursement = await remboursementService.creerIndividuel(req.body);
+    const membre = await membreComiteRepository.findByUtilisateurId(req.utilisateurId);
+    const remboursement = await remboursementService.creerIndividuel(req.body, membre?.canton_id);
     res.status(201).json({ remboursement });
   } catch (erreur) {
     res.status(erreur.statusCode || 500).json({ message: erreur.message });
@@ -20,7 +22,8 @@ async function consulterIndividuelParAttribution(req, res) {
 
 async function creerCollectif(req, res) {
   try {
-    const remboursement = await remboursementService.creerCollectif(req.body);
+    const membre = await membreComiteRepository.findByUtilisateurId(req.utilisateurId);
+    const remboursement = await remboursementService.creerCollectif(req.body, membre?.canton_id);
     res.status(201).json({ remboursement });
   } catch (erreur) {
     res.status(erreur.statusCode || 500).json({ message: erreur.message });

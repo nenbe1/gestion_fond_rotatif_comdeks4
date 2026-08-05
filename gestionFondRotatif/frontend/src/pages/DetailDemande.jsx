@@ -9,15 +9,18 @@ const NIVEAUX_LIBELLES = {
 };
 
 /**
- * Page détail d'une demande de financement — le cœur de la démonstration.
- * Visualise le circuit de validation à 3 niveaux, permet d'approuver ou
- * rejeter chaque étape (dans l'ordre imposé par le backend), et affiche
- * la décision finale de la Responsable une fois le comité passé.
+ * Page détail d'une demande de financement — consultation côté
+ * Responsable/Administration. Le circuit de validation du comité
+ * (Trésorier -> Commissaire -> Président) est traité exclusivement sur
+ * le Mobile par les membres concernés ; ici on ne fait qu'observer sa
+ * progression. La seule action possible sur le Web est la décision
+ * finale de la Responsable, une fois le circuit interne terminé.
  */
 export default function DetailDemande() {
   const { id } = useParams();
   const [demande, setDemande] = useState(null);
   const [circuit, setCircuit] = useState([]);
+  const [beneficiairesPrevus, setBeneficiairesPrevus] = useState([]);
   const [fonds, setFonds] = useState([]);
   const [programmes, setProgrammes] = useState([]);
   const [chargement, setChargement] = useState(true);
@@ -25,42 +28,56 @@ export default function DetailDemande() {
   const [actionEnCours, setActionEnCours] = useState(false);
   const [decisionResponsable, setDecisionResponsable] = useState({ fond_rotatif_id: '', programme_id: '' });
 
+  // CORRECTION : chaque appel a maintenant son propre try/catch.
+  // Avant, un Promise.all groupait les 3 appels : si UN SEUL echouait
+  // (ex. /beneficiaires-prevus), "demande" restait a null et l'ecran
+  // affichait "Demande introuvable" meme si la vraie erreur etait
+  // ailleurs. Maintenant, un echec sur le circuit ou les beneficiaires
+  // prevus n'empeche plus d'afficher la demande, et le vrai message
+  // d'erreur remonte a l'ecran si c'est la demande elle-meme qui echoue.
   async function chargerTout() {
     setChargement(true);
-    try {
-      const [d, c] = await Promise.all([
-        appelerApi(`/demandes-financement/${id}`),
-        appelerApi(`/validations/demande/${id}`),
-      ]);
-      setDemande(d.demande);
-      setCircuit(c.circuit);
+    setErreur('');
 
-      if (d.demande.statutGlobal === 'EnAttenteResponsable') {
+    let demandeChargee;
+    try {
+      const d = await appelerApi(`/demandes-financement/${id}`);
+      demandeChargee = d.demande;
+      setDemande(d.demande);
+    } catch (err) {
+      setErreur(err.message);
+      setChargement(false);
+      return;
+    }
+
+    try {
+      const c = await appelerApi(`/validations/demande/${id}`);
+      setCircuit(c.circuit);
+    } catch (err) {
+      console.error('Erreur chargement circuit de validation :', err.message);
+    }
+
+    try {
+      const bp = await appelerApi(`/demandes-financement/${id}/beneficiaires-prevus`);
+      setBeneficiairesPrevus(bp.beneficiairesPrevus);
+    } catch (err) {
+      console.error('Erreur chargement beneficiaires prevus :', err.message);
+    }
+
+    if (demandeChargee.statutGlobal === 'EnAttenteResponsable') {
+      try {
         const [f, p] = await Promise.all([appelerApi('/fond-rotatif'), appelerApi('/programmes')]);
         setFonds(f.fonds);
         setProgrammes(p.programmes);
+      } catch (err) {
+        console.error('Erreur chargement fonds/programmes :', err.message);
       }
-    } catch (err) {
-      setErreur(err.message);
-    } finally {
-      setChargement(false);
     }
+
+    setChargement(false);
   }
 
   useEffect(() => { chargerTout(); }, [id]);
-
-  async function traiterEtape(validationId, decision) {
-    setErreur('');
-    setActionEnCours(true);
-    try {
-      await appelerApi(`/validations/${validationId}/traiter`, { method: 'PUT', body: { decision } });
-      await chargerTout();
-    } catch (err) {
-      setErreur(err.message);
-    } finally {
-      setActionEnCours(false);
-    }
-  }
 
   async function gererDecisionResponsable(decision) {
     setErreur('');
@@ -79,6 +96,7 @@ export default function DetailDemande() {
   }
 
   if (chargement) return <p>Chargement...</p>;
+  if (erreur && !demande) return <p className="message-erreur">{erreur}</p>;
   if (!demande) return <p>Demande introuvable.</p>;
 
   return (
@@ -86,6 +104,7 @@ export default function DetailDemande() {
       <h1>Demande {demande.codeDemande}</h1>
 
       <div className="carte-info">
+        <p><strong>Canton :</strong> {demande.cantonNom || '—'}</p>
         <p><strong>Objet :</strong> {demande.objetDemande}</p>
         <p><strong>Montant :</strong> {Number(demande.montantDemande).toLocaleString('fr-FR')} FCFA</p>
         <p><strong>Bénéficiaires :</strong> {demande.nbFemmesBenef} femmes, {demande.nbHommesBenef} hommes</p>
@@ -94,40 +113,33 @@ export default function DetailDemande() {
 
       {erreur && <p className="message-erreur">{erreur}</p>}
 
-      <h2>Circuit de validation du comité</h2>
-      <div className="circuit-validation">
-        {circuit.map((etape, index) => {
-          const etapePrecedenteApprouvee = index === 0 || circuit[index - 1].statut === 'Approuve';
-          const peutTraiter = etape.statut === 'EnAttente' && etapePrecedenteApprouvee;
+      <h2>Bénéficiaires visés</h2>
+      <div className="carte-info">
+        {beneficiairesPrevus.length === 0 ? (
+          <p className="vide">Aucun bénéficiaire renseigné pour cette demande.</p>
+        ) : (
+          <ul>
+            {beneficiairesPrevus.map((bp) => (
+              <li key={bp.id}>
+                {bp.beneficiaireId ? `${bp.beneficiaireNom} ${bp.beneficiairePrenom}` : `${bp.nomLibre} (nom libre)`}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
-          return (
-            <div key={etape.id} className={`etape-circuit etape-${etape.statut}`}>
-              <div className="etape-numero">{etape.ordre}</div>
-              <div className="etape-contenu">
-                <strong>{NIVEAUX_LIBELLES[etape.niveau]}</strong>
-                <span className={`badge badge-${etape.statut}`}>{etape.statut}</span>
-                {etape.statut === 'EnAttente' && (
-                  <div className="actions-etape">
-                    <button
-                      disabled={!peutTraiter || actionEnCours}
-                      onClick={() => traiterEtape(etape.id, 'Approuve')}
-                      title={!peutTraiter ? "L'étape précédente doit être approuvée d'abord" : ''}
-                    >
-                      Approuver
-                    </button>
-                    <button
-                      className="bouton-danger"
-                      disabled={!peutTraiter || actionEnCours}
-                      onClick={() => traiterEtape(etape.id, 'Rejete')}
-                    >
-                      Rejeter
-                    </button>
-                  </div>
-                )}
-              </div>
+      <h2>Circuit de validation du comité</h2>
+      <p className="note">Traité exclusivement par les membres du comité concernés, sur le Mobile.</p>
+      <div className="circuit-validation">
+        {circuit.map((etape) => (
+          <div key={etape.id} className={`etape-circuit etape-${etape.statut}`}>
+            <div className="etape-numero">{etape.ordre}</div>
+            <div className="etape-contenu">
+              <strong>{NIVEAUX_LIBELLES[etape.niveau]}</strong>
+              <span className={`badge badge-${etape.statut}`}>{etape.statut}</span>
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
 
       {demande.statutGlobal === 'EnAttenteResponsable' && (

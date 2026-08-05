@@ -89,12 +89,14 @@ CREATE TABLE parametre (
 CREATE TABLE beneficiaire (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   utilisateur_id BIGINT UNIQUE NOT NULL,
+  canton_id BIGINT NULL, -- canton du membre du comité qui l'a enregistré, renseigné automatiquement
   age_estime INT NULL,
   activite VARCHAR(150) NULL,
   latitude DECIMAL(10,7) NULL,
   longitude DECIMAL(10,7) NULL,
   statut_mmf VARCHAR(30) NOT NULL DEFAULT 'Nouveau',
-  CONSTRAINT fk_beneficiaire_utilisateur FOREIGN KEY (utilisateur_id) REFERENCES utilisateur(id)
+  CONSTRAINT fk_beneficiaire_utilisateur FOREIGN KEY (utilisateur_id) REFERENCES utilisateur(id),
+  CONSTRAINT fk_beneficiaire_canton FOREIGN KEY (canton_id) REFERENCES canton(id)
 );
 
 -- ---------------------------------------------------------------------
@@ -325,6 +327,10 @@ CREATE TABLE rapport_genere (
 --                l'âge est <= valeur_critere (ex. "Jeunesse" = 30)
 -- Un seul de domaine_id / valeur_critere est renseigné, selon type_critere.
 -- ---------------------------------------------------------------------
+-- Note : la cohérence type_critere / domaine_id / valeur_critere n'est
+-- pas imposée par une contrainte CHECK ici (syntaxe non supportée par
+-- toutes les versions de MySQL/MariaDB) — elle est appliquée côté
+-- application, dans autorite.validator.js (validerCreation).
 CREATE TABLE autorite (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   utilisateur_id BIGINT UNIQUE NOT NULL,
@@ -334,12 +340,25 @@ CREATE TABLE autorite (
   valeur_critere VARCHAR(20) NULL, -- renseigné uniquement si type_critere = SEXE ('F'/'M') ou AGE_MAX (ex. '30')
   actif BOOLEAN NOT NULL DEFAULT TRUE,
   CONSTRAINT fk_autorite_utilisateur FOREIGN KEY (utilisateur_id) REFERENCES utilisateur(id),
-  CONSTRAINT fk_autorite_domaine FOREIGN KEY (domaine_id) REFERENCES domaine(id),
-  CONSTRAINT chk_autorite_critere CHECK (
-    (type_critere = 'DOMAINE' AND domaine_id IS NOT NULL AND valeur_critere IS NULL)
-    OR
-    (type_critere IN ('SEXE', 'AGE_MAX') AND domaine_id IS NULL AND valeur_critere IS NOT NULL)
-  )
+  CONSTRAINT fk_autorite_domaine FOREIGN KEY (domaine_id) REFERENCES domaine(id)
+);
+
+-- ---------------------------------------------------------------------
+-- 12. DEMANDE_BENEFICIAIRE_PREVU — liste des bénéficiaires visés,
+-- fournie par le comité au moment de la demande (avant tout financement
+-- réel ; pas de montant à ce stade, juste "qui" est visé, pour que la
+-- Responsable sache qui sera concerné avant de valider). Chaque ligne
+-- référence soit un bénéficiaire déjà enregistré (beneficiaire_id), soit
+-- un nom saisi librement pour quelqu'un pas encore enregistré (nom_libre)
+-- — un seul des deux renseigné, vérifié côté application.
+-- ---------------------------------------------------------------------
+CREATE TABLE demande_beneficiaire_prevu (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  demande_financement_id BIGINT NOT NULL,
+  beneficiaire_id BIGINT NULL,
+  nom_libre VARCHAR(150) NULL,
+  CONSTRAINT fk_dbp_demande FOREIGN KEY (demande_financement_id) REFERENCES demande_financement(id),
+  CONSTRAINT fk_dbp_beneficiaire FOREIGN KEY (beneficiaire_id) REFERENCES beneficiaire(id)
 );
 
 -- =====================================================================

@@ -5,6 +5,9 @@ import appelerApi from '../api/client';
  * Page Rapports — génère un nouvel instantané d'indicateurs sur une
  * période, et liste les rapports déjà générés (jamais recalculés après
  * coup, voir modules/rapports côté backend).
+ *
+ * AJOUT : bouton Supprimer par rapport (avec confirmation), pour
+ * corriger un rapport généré par erreur.
  */
 export default function Rapports() {
   const [rapports, setRapports] = useState([]);
@@ -12,6 +15,7 @@ export default function Rapports() {
   const [erreur, setErreur] = useState('');
   const [periode, setPeriode] = useState({ periode_debut: '', periode_fin: '' });
   const [generationEnCours, setGenerationEnCours] = useState(false);
+  const [suppressionEnCoursId, setSuppressionEnCoursId] = useState(null);
 
   async function chargerRapports() {
     setChargement(true);
@@ -38,6 +42,20 @@ export default function Rapports() {
       setErreur(err.message);
     } finally {
       setGenerationEnCours(false);
+    }
+  }
+
+  async function gererSuppression(id) {
+    if (!window.confirm('Supprimer définitivement ce rapport ? Cette action est irréversible.')) return;
+    setErreur('');
+    setSuppressionEnCoursId(id);
+    try {
+      await appelerApi(`/rapports/${id}`, { method: 'DELETE' });
+      await chargerRapports();
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setSuppressionEnCoursId(null);
     }
   }
 
@@ -69,7 +87,16 @@ export default function Rapports() {
         <div className="grille-cartes-rapports">
           {rapports.map((r) => (
             <div key={r.id} className="carte-rapport">
-              <p className="periode-rapport">{r.periodeDebut} → {r.periodeFin}</p>
+              <div className="entete-carte-rapport">
+                <p className="periode-rapport">{r.periodeDebut} → {r.periodeFin}</p>
+                <button
+                  className="bouton-danger bouton-petit"
+                  disabled={suppressionEnCoursId === r.id}
+                  onClick={() => gererSuppression(r.id)}
+                >
+                  {suppressionEnCoursId === r.id ? 'Suppression...' : 'Supprimer'}
+                </button>
+              </div>
               <div className="indicateurs-rapport">
                 <div><span>{r.nombreBeneficiaires}</span>bénéficiaires touchés</div>
                 <div><span>{Number(r.montantTotalFinance).toLocaleString('fr-FR')}</span>FCFA financés</div>

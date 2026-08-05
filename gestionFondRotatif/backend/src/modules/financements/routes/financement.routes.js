@@ -8,5 +8,7 @@ router.use(verifierToken);
 
 router.get('/', financementController.consulterTous);
 router.get('/:id', financementController.consulterParId);
+router.put('/:id', financementController.modifier);
+router.delete('/:id', financementController.supprimer);
 
 module.exports = router;

@@ -2,8 +2,9 @@ const rapportService = require('../service/rapport.service');
 
 /**
  * Controller RapportGenere — traduit les requêtes HTTP en appels au
- * service. La génération est réservée à la Responsable du Fond Rotatif
- * (résolution de son identité via le token, voir rapportService.resoudreResponsableId).
+ * service. La génération et la suppression sont réservées à la
+ * Responsable du Fond Rotatif (résolution de son identité via le token,
+ * voir rapportService.resoudreResponsableId).
  */
 
 /** POST /api/rapports — génère un nouvel instantané pour la période fournie. */
@@ -41,4 +42,25 @@ async function consulterParId(req, res) {
   }
 }
 
-module.exports = { generer, consulterTous, consulterParId };
+/** DELETE /api/rapports/:id — réservé à la Responsable, comme la génération. */
+async function supprimer(req, res) {
+  try {
+    await rapportService.resoudreResponsableId(req.utilisateurId);
+    await rapportService.supprimer(req.params.id);
+    res.status(204).send();
+  } catch (erreur) {
+    res.status(erreur.statusCode || 500).json({ message: erreur.message });
+  }
+}
+
+/** GET /api/rapports/remboursements-par-canton */
+async function consulterRemboursementsParCanton(req, res) {
+  try {
+    const remboursementsParCanton = await rapportService.consulterRemboursementsParCanton();
+    res.status(200).json({ remboursementsParCanton });
+  } catch (erreur) {
+    res.status(erreur.statusCode || 500).json({ message: erreur.message });
+  }
+}
+
+module.exports = { generer, consulterTous, consulterParId, supprimer, consulterRemboursementsParCanton };

@@ -17,9 +17,9 @@ function erreur(message, statusCode) {
 }
 
 /**
- * Un compte Autorite ne doit jamais être créé en libre-service : c'est
- * la Responsable qui décide du critère (donc de ce que le délégué
- * pourra voir). Vérifié ici, pas seulement caché côté frontend.
+ * Un compte Autorite ne doit jamais être créé (ni modifié) en libre-
+ * service : c'est la Responsable qui décide du critère (donc de ce que
+ * le délégué pourra voir). Vérifié ici, pas seulement caché côté frontend.
  * @throws {Error} 403 si l'appelant n'est pas la Responsable
  */
 async function verifierAppelantEstResponsable(utilisateurId) {
@@ -28,16 +28,10 @@ async function verifierAppelantEstResponsable(utilisateurId) {
     [utilisateurId]
   );
   if (!rows[0]) {
-    throw erreur('Seule la Responsable du Fond Rotatif peut créer un compte délégué.', 403);
+    throw erreur('Seule la Responsable du Fond Rotatif peut gérer les comptes délégués.', 403);
   }
 }
 
-/**
- * Une Autorite hérite de Utilisateur, comme Beneficiaire/MembreComite :
- * création de la ligne utilisateur, puis de la ligne autorite liée.
- * Un seul des deux (domaine_id / valeur_critere) est attendu, selon
- * type_critere — validé en amont par le validator.
- */
 async function creer(utilisateurConnecteId, { nom, prenom, sexe, telephone, email, mot_de_passe, photo, fonction, type_critere, domaine_id, valeur_critere }) {
   await verifierAppelantEstResponsable(utilisateurConnecteId);
 
@@ -81,21 +75,47 @@ async function consulterParId(id) {
   return Autorite.fromRow(row);
 }
 
-/**
- * Retrouve la ligne autorite liée à l'utilisateur actuellement connecté.
- * @throws {Error} 403 si l'utilisateur connecté n'est pas une Autorite
- */
+// AJOUT : modification d'une autorité — réservée à la Responsable, comme
+// la création. Met à jour à la fois les infos utilisateur (nom, prénom,
+// téléphone...) et les infos propres à l'autorité (fonction, critère
+// d'accès, actif).
+async function modifier(utilisateurConnecteId, id, { nom, prenom, sexe, telephone, email, fonction, type_critere, domaine_id, valeur_critere, actif }) {
+  await verifierAppelantEstResponsable(utilisateurConnecteId);
+
+  const autoriteActuelle = await consulterParId(id);
+
+  if (telephone && telephone !== autoriteActuelle.telephone) {
+    const existant = await utilisateurRepository.findByTelephone(telephone);
+    if (existant && existant.id !== autoriteActuelle.utilisateurId) {
+      throw erreur('Un utilisateur avec ce numéro de téléphone existe déjà.', 409);
+    }
+  }
+
+  await utilisateurRepository.update(autoriteActuelle.utilisateurId, {
+    nom: nom ?? autoriteActuelle.nom,
+    prenom: prenom ?? autoriteActuelle.prenom,
+    sexe: sexe ?? autoriteActuelle.sexe,
+    telephone: telephone ?? autoriteActuelle.telephone,
+    email: email ?? autoriteActuelle.email,
+  });
+
+  const row = await autoriteRepository.update(id, {
+    fonction: fonction ?? autoriteActuelle.fonction,
+    type_critere: type_critere ?? autoriteActuelle.typeCritere,
+    domaine_id: domaine_id !== undefined ? domaine_id : autoriteActuelle.domaineId,
+    valeur_critere: valeur_critere !== undefined ? valeur_critere : autoriteActuelle.valeurCritere,
+    actif: actif !== undefined ? actif : autoriteActuelle.actif,
+  });
+
+  return Autorite.fromRow(row);
+}
+
 async function resoudreAutoriteParUtilisateur(utilisateurId) {
   const row = await autoriteRepository.findByUtilisateurId(utilisateurId);
   if (!row) throw erreur("L'utilisateur connecté n'est pas enregistré comme délégué (Autorité).", 403);
   return Autorite.fromRow(row);
 }
 
-/**
- * Statistiques globales pour le délégué connecté — jamais de détail
- * nominatif, uniquement des totaux, filtrés selon son critère unique
- * (domaine, sexe ou âge maximum), sur l'ensemble des cantons.
- */
 async function consulterMesStatistiques(utilisateurId) {
   const autorite = await resoudreAutoriteParUtilisateur(utilisateurId);
   const stats = await autoriteRepository.calculerStatistiques({
@@ -113,11 +133,10 @@ async function consulterMesStatistiques(utilisateurId) {
   };
 }
 
-/** Libellé humain du critère, pour affichage ("Domaine : Agriculture", "Sexe : F", "Âge <= 30 ans"). */
 function libelleCritere(autorite) {
   if (autorite.typeCritere === 'DOMAINE') return `Domaine : ${autorite.domaineNom}`;
   if (autorite.typeCritere === 'SEXE') return `Sexe : ${autorite.valeurCritere}`;
   return `Âge <= ${autorite.valeurCritere} ans`;
 }
 
-module.exports = { creer, consulterTous, consulterParId, resoudreAutoriteParUtilisateur, consulterMesStatistiques };
+module.exports = { creer, consulterTous, consulterParId, modifier, resoudreAutoriteParUtilisateur, consulterMesStatistiques };

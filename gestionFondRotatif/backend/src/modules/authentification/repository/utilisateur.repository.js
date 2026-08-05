@@ -31,4 +31,16 @@ async function create({ code_utilisateur, nom, prenom, sexe, telephone, email, m
   return findById(result.insertId);
 }
 
-module.exports = { findByTelephone, findById, create };
+// AJOUT : mise à jour des infos de base d'un utilisateur (nom, prénom,
+// téléphone, email) — utilisé par les modules qui héritent d'Utilisateur
+// (membre_comite, autorite, etc.) pour corriger une faute de saisie sans
+// devoir recréer le compte.
+async function update(id, { nom, prenom, sexe, telephone, email }) {
+  await db.query(
+    `UPDATE utilisateur SET nom = ?, prenom = ?, sexe = ?, telephone = ?, email = ? WHERE id = ?`,
+    [nom, prenom, sexe, telephone, email || null, id]
+  );
+  return findById(id);
+}
+
+module.exports = { findByTelephone, findById, create, update };

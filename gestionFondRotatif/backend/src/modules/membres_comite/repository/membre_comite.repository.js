@@ -9,7 +9,7 @@ const SELECT_BASE = `
   FROM membre_comite mc
   INNER JOIN utilisateur u ON u.id = mc.utilisateur_id
   INNER JOIN fonction f ON f.id = mc.fonction_id
-  INNER JOIN canton c ON c.id = mc.canton_id
+  LEFT JOIN canton c ON c.id = mc.canton_id
 `;
 
 async function findAll() {

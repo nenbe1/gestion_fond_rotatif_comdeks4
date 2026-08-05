@@ -105,6 +105,18 @@ async function connecter({ telephone, mot_de_passe }) {
   const utilisateur = Utilisateur.fromRow(row);
   utilisateur.role = role;
 
+  if (role === 'MEMBRE_COMITE') {
+    const membreComiteRepository = require('../../membres_comite/repository/membre_comite.repository');
+    const membre = await membreComiteRepository.findByUtilisateurId(row.id);
+    if (!membre) {
+      const erreur = new Error('Compte membre du comité introuvable ou incomplet — contactez la Responsable.');
+      erreur.statusCode = 500;
+      throw erreur;
+    }
+    utilisateur.fonctionCode = membre.fonction_code;
+    utilisateur.fonctionLibelle = membre.fonction_libelle;
+  }
+
   return { token, utilisateur };
 }
 

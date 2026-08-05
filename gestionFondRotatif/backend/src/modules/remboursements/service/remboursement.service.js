@@ -1,6 +1,7 @@
 const db = require('../../../config/db');
 const remboursementRepository = require('../repository/remboursement.repository');
 const attributionRepository = require('../../attributions/repository/attribution.repository');
+const financementRepository = require('../../financements/repository/financement.repository');
 const validationRepository = require('../../validations/repository/validation.repository');
 const beneficiaireService = require('../../beneficiaires/service/beneficiaire.service');
 const { RemboursementBeneficiaire, RemboursementCollectif } = require('../model/remboursement.model');
@@ -16,9 +17,16 @@ function erreur(message, statusCode) {
 // avant l'enregistrement — c'est un fait accompli, pas de circuit de
 // validation ici (contrairement au niveau collectif).
 
-async function creerIndividuel({ attribution_financement_id, montant, date_versement, observation }) {
+async function creerIndividuel({ attribution_financement_id, montant, date_versement, observation }, cantonIdAppelant) {
   const attribution = await attributionRepository.findById(attribution_financement_id);
   if (!attribution) throw erreur('Attribution introuvable.', 404);
+
+  if (cantonIdAppelant) {
+    const cantonFinancement = await financementRepository.trouverCantonId(attribution.financement_id);
+    if (cantonFinancement !== null && cantonFinancement !== cantonIdAppelant) {
+      throw erreur('Cette attribution appartient à un autre canton.', 403);
+    }
+  }
 
   const dejaRembourse = await attributionRepository.sommeRembourseePourAttribution(attribution_financement_id);
   const resteAPayer = Number(attribution.montant_attribue) - dejaRembourse;
@@ -51,9 +59,16 @@ async function getFinancement(financementId) {
   return rows[0] || null;
 }
 
-async function creerCollectif({ financement_id, numero_semaine, date_prevue, montant_prevu }) {
+async function creerCollectif({ financement_id, numero_semaine, date_prevue, montant_prevu }, cantonIdAppelant) {
   const financement = await getFinancement(financement_id);
   if (!financement) throw erreur('Financement introuvable.', 404);
+
+  if (cantonIdAppelant) {
+    const cantonFinancement = await financementRepository.trouverCantonId(financement_id);
+    if (cantonFinancement !== null && cantonFinancement !== cantonIdAppelant) {
+      throw erreur('Ce financement appartient à un autre canton.', 403);
+    }
+  }
 
   const row = await remboursementRepository.createCollectif({
     financement_id, numero_semaine, date_prevue, montant_prevu,

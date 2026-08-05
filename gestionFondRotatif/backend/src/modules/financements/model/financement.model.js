@@ -14,6 +14,8 @@ class Financement {
     this.tauxMajorationApplique = row.taux_majoration_applique;
     this.dateDecaissement = row.date_decaissement;
     this.statut = row.statut;
+    this.cantonId = row.canton_id;
+    this.cantonNom = row.canton_nom;
   }
 
   static fromRow(row) {

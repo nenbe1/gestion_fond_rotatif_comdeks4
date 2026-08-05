@@ -40,18 +40,15 @@ async function create({ utilisateur_id, fonction, type_critere, domaine_id, vale
   return findById(result.insertId);
 }
 
-/**
- * Calcule les statistiques globales (jamais de détail nominatif) des
- * financements allés vers la catégorie de bénéficiaires correspondant
- * au critère du délégué. Toujours calculé sur l'ensemble des cantons
- * (le délégué voit tout ce qui le concerne, sans restriction géographique).
- *
- * DOMAINE  -> filtre sur demande_financement.domaine_id (le domaine du
- *             projet financé, ex. Agriculture).
- * SEXE / AGE_MAX -> filtre sur le bénéficiaire réellement attributaire
- *             (attribution_financement -> beneficiaire), puisque ce sont
- *             des attributs de la personne, pas du projet.
- */
+// AJOUT : modification d'une autorité (fonction, critère d'accès, actif).
+async function update(id, { fonction, type_critere, domaine_id, valeur_critere, actif }) {
+  await db.query(
+    `UPDATE autorite SET fonction = ?, type_critere = ?, domaine_id = ?, valeur_critere = ?, actif = ? WHERE id = ?`,
+    [fonction, type_critere, domaine_id || null, valeur_critere || null, actif, id]
+  );
+  return findById(id);
+}
+
 async function calculerStatistiques({ typeCritere, domaineId, valeurCritere }) {
   let condition;
   let params;
@@ -85,4 +82,4 @@ async function calculerStatistiques({ typeCritere, domaineId, valeurCritere }) {
   return rows[0];
 }
 
-module.exports = { findAll, findById, findByUtilisateurId, create, calculerStatistiques };
+module.exports = { findAll, findById, findByUtilisateurId, create, update, calculerStatistiques };

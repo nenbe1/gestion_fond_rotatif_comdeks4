@@ -8,15 +8,20 @@ const db = require('../../../config/db');
 
 const SELECT_BASE = `
   SELECT
-    b.id, b.utilisateur_id, b.age_estime, b.activite,
+    b.id, b.utilisateur_id, b.canton_id, c.nom AS canton_nom, b.age_estime, b.activite,
     b.latitude, b.longitude, b.statut_mmf,
     u.code_utilisateur, u.nom, u.prenom, u.sexe, u.telephone,
     u.email, u.photo, u.date_creation, u.actif
   FROM beneficiaire b
   INNER JOIN utilisateur u ON u.id = b.utilisateur_id
+  LEFT JOIN canton c ON c.id = b.canton_id
 `;
 
-async function findAll() {
+async function findAll({ cantonId } = {}) {
+  if (cantonId) {
+    const [rows] = await db.query(`${SELECT_BASE} WHERE b.canton_id = ? ORDER BY u.date_creation DESC`, [cantonId]);
+    return rows;
+  }
   const [rows] = await db.query(`${SELECT_BASE} ORDER BY u.date_creation DESC`);
   return rows;
 }
@@ -31,12 +36,12 @@ async function findByUtilisateurId(utilisateurId) {
   return rows[0] || null;
 }
 
-async function create({ utilisateur_id, age_estime, activite, latitude, longitude }) {
+async function create({ utilisateur_id, canton_id, age_estime, activite, latitude, longitude }) {
   const [result] = await db.query(
     `INSERT INTO beneficiaire
-      (utilisateur_id, age_estime, activite, latitude, longitude, statut_mmf)
-     VALUES (?, ?, ?, ?, ?, 'Nouveau')`,
-    [utilisateur_id, age_estime || null, activite || null, latitude || null, longitude || null]
+      (utilisateur_id, canton_id, age_estime, activite, latitude, longitude, statut_mmf)
+     VALUES (?, ?, ?, ?, ?, ?, 'Nouveau')`,
+    [utilisateur_id, canton_id || null, age_estime || null, activite || null, latitude || null, longitude || null]
   );
   return findById(result.insertId);
 }

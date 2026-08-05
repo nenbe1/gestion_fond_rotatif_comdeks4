@@ -14,6 +14,36 @@ function validerCreation(req, res, next) {
   if (!mot_de_passe || mot_de_passe.length < 6) erreurs.push('Le mot de passe doit contenir au moins 6 caractères.');
   if (!fonction || fonction.trim().length < 3) erreurs.push('La fonction du délégué est requise (ex. "Délégué de la Jeunesse").');
 
+  validerCritere(type_critere, domaine_id, valeur_critere, erreurs);
+
+  if (erreurs.length > 0) {
+    return res.status(400).json({ erreurs });
+  }
+  next();
+}
+
+// AJOUT : validation de la modification. nom/prenom/sexe/telephone/email
+// sont optionnels (seuls fonction et le critère restent obligatoires,
+// une autorité doit toujours avoir un critère d'accès valide).
+function validerModification(req, res, next) {
+  const { nom, prenom, sexe, telephone, fonction, type_critere, domaine_id, valeur_critere } = req.body;
+  const erreurs = [];
+
+  if (nom !== undefined && nom.trim().length < 2) erreurs.push('Le nom doit contenir au moins 2 caractères.');
+  if (prenom !== undefined && prenom.trim().length < 2) erreurs.push('Le prénom doit contenir au moins 2 caractères.');
+  if (sexe !== undefined && !['M', 'F'].includes(sexe)) erreurs.push("Le sexe doit être 'M' ou 'F'.");
+  if (telephone !== undefined && !/^\+?[0-9]{8,15}$/.test(telephone)) erreurs.push('Numéro de téléphone invalide.');
+  if (!fonction || fonction.trim().length < 3) erreurs.push('La fonction du délégué est requise (ex. "Délégué de la Jeunesse").');
+
+  validerCritere(type_critere, domaine_id, valeur_critere, erreurs);
+
+  if (erreurs.length > 0) {
+    return res.status(400).json({ erreurs });
+  }
+  next();
+}
+
+function validerCritere(type_critere, domaine_id, valeur_critere, erreurs) {
   if (!type_critere || !TYPES_CRITERE.includes(type_critere)) {
     erreurs.push(`type_critere doit être l'un de : ${TYPES_CRITERE.join(', ')}.`);
   } else if (type_critere === 'DOMAINE') {
@@ -30,11 +60,6 @@ function validerCreation(req, res, next) {
     }
     if (domaine_id) erreurs.push('domaine_id ne doit pas être renseigné quand type_critere = AGE_MAX.');
   }
-
-  if (erreurs.length > 0) {
-    return res.status(400).json({ erreurs });
-  }
-  next();
 }
 
-module.exports = { validerCreation };
+module.exports = { validerCreation, validerModification };

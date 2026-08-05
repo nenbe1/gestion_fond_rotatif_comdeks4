@@ -3,39 +3,34 @@ import { useParams } from 'react-router-dom';
 import appelerApi from '../api/client';
 
 /**
- * Page détail d'un financement — répartition aux bénéficiaires
- * (AttributionFinancement) et suivi des remboursements individuels.
- * Le "reste à payer" par bénéficiaire est recalculé après chaque
- * remboursement (recalcul du statutMMF déclenché côté backend).
+ * Page détail d'un financement — LECTURE SEULE côté Web.
+ *
+ * CORRECTION : la répartition aux bénéficiaires (attributions) et
+ * l'enregistrement des remboursements sont désormais réservés au
+ * comité (déjà imposé côté backend par le middleware reserverAuComite,
+ * et déjà géré sur Mobile via DetailFinancementComiteScreen /
+ * DetailFinancementRemboursementsScreen). La Responsable ne fait que
+ * suivre l'avancement ici — les formulaires d'action ont été retirés
+ * pour ne plus afficher de boutons qui échouaient de toute façon avec
+ * une erreur 403.
  */
 export default function DetailFinancement() {
   const { id } = useParams();
   const [financement, setFinancement] = useState(null);
   const [attributions, setAttributions] = useState([]);
   const [restes, setRestes] = useState({}); // { attributionId: { montantAttribue, montantRembourse, resteAPayer, soldee } }
-  const [beneficiaires, setBeneficiaires] = useState([]);
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState('');
-
-  const [afficherFormAttribution, setAfficherFormAttribution] = useState(false);
-  const [formAttribution, setFormAttribution] = useState({ beneficiaire_id: '', montant_attribue: '' });
-  const [envoiAttribution, setEnvoiAttribution] = useState(false);
-
-  const [formulaireRemboursement, setFormulaireRemboursement] = useState(null); // attributionId en cours d'edition
-  const [montantRemboursement, setMontantRemboursement] = useState('');
-  const [envoiRemboursement, setEnvoiRemboursement] = useState(false);
 
   async function chargerTout() {
     setChargement(true);
     try {
-      const [f, a, b] = await Promise.all([
+      const [f, a] = await Promise.all([
         appelerApi(`/financements/${id}`),
         appelerApi(`/attributions/financement/${id}`),
-        appelerApi('/beneficiaires'),
       ]);
       setFinancement(f.financement);
       setAttributions(a.attributions);
-      setBeneficiaires(b.beneficiaires);
 
       const restesCharges = {};
       await Promise.all(
@@ -57,48 +52,6 @@ export default function DetailFinancement() {
   const montantDejaAttribue = attributions.reduce((total, a) => total + Number(a.montantAttribue), 0);
   const montantRestantAAttribuer = financement ? Number(financement.montantFinancement) - montantDejaAttribue : 0;
 
-  async function gererCreationAttribution(e) {
-    e.preventDefault();
-    setErreur('');
-    setEnvoiAttribution(true);
-    try {
-      await appelerApi('/attributions', {
-        method: 'POST',
-        body: { financement_id: id, ...formAttribution },
-      });
-      setAfficherFormAttribution(false);
-      setFormAttribution({ beneficiaire_id: '', montant_attribue: '' });
-      await chargerTout();
-    } catch (err) {
-      setErreur(err.message);
-    } finally {
-      setEnvoiAttribution(false);
-    }
-  }
-
-  async function gererCreationRemboursement(e, attributionId) {
-    e.preventDefault();
-    setErreur('');
-    setEnvoiRemboursement(true);
-    try {
-      await appelerApi('/remboursements/individuel', {
-        method: 'POST',
-        body: {
-          attribution_financement_id: attributionId,
-          montant: montantRemboursement,
-          date_versement: new Date().toISOString().slice(0, 10),
-        },
-      });
-      setFormulaireRemboursement(null);
-      setMontantRemboursement('');
-      await chargerTout();
-    } catch (err) {
-      setErreur(err.message);
-    } finally {
-      setEnvoiRemboursement(false);
-    }
-  }
-
   if (chargement) return <p>Chargement...</p>;
   if (!financement) return <p>Financement introuvable.</p>;
 
@@ -115,48 +68,12 @@ export default function DetailFinancement() {
 
       {erreur && <p className="message-erreur">{erreur}</p>}
 
-      <div className="entete-page">
-        <h2>Répartition aux bénéficiaires</h2>
-        <button
-          onClick={() => setAfficherFormAttribution(!afficherFormAttribution)}
-          disabled={montantRestantAAttribuer <= 0}
-        >
-          {afficherFormAttribution ? 'Annuler' : '+ Attribuer une part'}
-        </button>
-      </div>
-
-      {afficherFormAttribution && (
-        <form className="formulaire-carte" onSubmit={gererCreationAttribution}>
-          <div className="grille-formulaire">
-            <label>
-              Bénéficiaire
-              <select
-                value={formAttribution.beneficiaire_id}
-                onChange={(e) => setFormAttribution({ ...formAttribution, beneficiaire_id: e.target.value })}
-                required
-              >
-                <option value="">-- Choisir --</option>
-                {beneficiaires.map((b) => <option key={b.id} value={b.id}>{b.nom} {b.prenom}</option>)}
-              </select>
-            </label>
-            <label>
-              Montant attribué (FCFA)
-              <input
-                type="number"
-                max={montantRestantAAttribuer}
-                value={formAttribution.montant_attribue}
-                onChange={(e) => setFormAttribution({ ...formAttribution, montant_attribue: e.target.value })}
-                required
-              />
-            </label>
-          </div>
-          <button type="submit" disabled={envoiAttribution}>{envoiAttribution ? 'Enregistrement...' : 'Attribuer'}</button>
-        </form>
-      )}
+      <h2>Répartition aux bénéficiaires</h2>
+      <p className="note">Effectuée par le comité, sur le Mobile.</p>
 
       <table className="tableau">
         <thead>
-          <tr><th>Bénéficiaire</th><th>Montant attribué</th><th>Remboursé</th><th>Reste à payer</th><th></th></tr>
+          <tr><th>Bénéficiaire</th><th>Montant attribué</th><th>Remboursé</th><th>Reste à payer</th></tr>
         </thead>
         <tbody>
           {attributions.map((a) => {
@@ -171,31 +88,11 @@ export default function DetailFinancement() {
                     ? <span className="badge badge-Solde">Soldé</span>
                     : `${reste ? reste.resteAPayer.toLocaleString('fr-FR') : '...'} FCFA`}
                 </td>
-                <td>
-                  {!reste?.soldee && (
-                    formulaireRemboursement === a.id ? (
-                      <form className="ligne-remboursement" onSubmit={(e) => gererCreationRemboursement(e, a.id)}>
-                        <input
-                          type="number"
-                          placeholder="Montant"
-                          max={reste?.resteAPayer}
-                          value={montantRemboursement}
-                          onChange={(e) => setMontantRemboursement(e.target.value)}
-                          required
-                        />
-                        <button type="submit" disabled={envoiRemboursement}>Valider</button>
-                        <button type="button" onClick={() => setFormulaireRemboursement(null)}>×</button>
-                      </form>
-                    ) : (
-                      <button onClick={() => setFormulaireRemboursement(a.id)}>+ Remboursement</button>
-                    )
-                  )}
-                </td>
               </tr>
             );
           })}
           {attributions.length === 0 && (
-            <tr><td colSpan="5" className="vide">Aucune attribution pour l'instant.</td></tr>
+            <tr><td colSpan="4" className="vide">Aucune attribution pour l'instant.</td></tr>
           )}
         </tbody>
       </table>

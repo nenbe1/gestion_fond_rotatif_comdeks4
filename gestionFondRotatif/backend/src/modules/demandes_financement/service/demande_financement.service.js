@@ -1,5 +1,6 @@
 const db = require('../../../config/db');
 const demandeRepository = require('../repository/demande_financement.repository');
+const beneficiairePrevuRepository = require('../repository/demande_beneficiaire_prevu.repository');
 const validationRepository = require('../../validations/repository/validation.repository');
 const financementService = require('../../financements/service/financement.service');
 const DemandeFinancement = require('../model/demande_financement.model');
@@ -11,17 +12,50 @@ function erreur(message, statusCode) {
 }
 
 /**
+ * Résout l'id membre_comite à partir de l'utilisateur connecté — jamais
+ * fourni par le client, pour que "qui a fait la demande" soit fiable.
+ * @throws {Error} 403 si l'utilisateur connecté n'est pas membre d'un comité
+ */
+async function resoudreMembreComiteId(utilisateurId) {
+  const [rows] = await db.query(
+    'SELECT id FROM membre_comite WHERE utilisateur_id = ? LIMIT 1',
+    [utilisateurId]
+  );
+  if (!rows[0]) {
+    throw erreur("L'utilisateur connecté n'est pas membre d'un comité.", 403);
+  }
+  return rows[0].id;
+}
+
+/**
  * Créer une demande crée automatiquement les 3 étapes de Validation en
  * attente (Trésorier -> Commissaire -> Président), comme conçu ensemble.
+ * Enregistre aussi la liste des bénéficiaires visés (sans montant à ce
+ * stade — juste "qui"), fournie par le comité pour que la Responsable
+ * sache qui sera concerné avant de valider.
  */
-async function creer(data) {
-  const row = await demandeRepository.create(data);
+async function creer(data, membreComiteId, beneficiairesPrevus = []) {
+  const row = await demandeRepository.create({ ...data, membre_comite_id: membreComiteId });
   await validationRepository.creerCircuitPourDemande(row.id);
+  if (beneficiairesPrevus.length > 0) {
+    await beneficiairePrevuRepository.createMany(row.id, beneficiairesPrevus);
+  }
   return DemandeFinancement.fromRow(row);
 }
 
-async function consulterTous() {
-  const rows = await demandeRepository.findAll();
+async function consulterBeneficiairesPrevus(demandeId) {
+  const rows = await beneficiairePrevuRepository.findByDemandeId(demandeId);
+  return rows.map((r) => ({
+    id: r.id,
+    beneficiaireId: r.beneficiaire_id,
+    beneficiaireNom: r.beneficiaire_nom,
+    beneficiairePrenom: r.beneficiaire_prenom,
+    nomLibre: r.nom_libre,
+  }));
+}
+
+async function consulterTous(cantonId, exclureEnCours) {
+  const rows = await demandeRepository.findAll({ cantonId, exclureEnCours });
   return rows.map(DemandeFinancement.fromRow);
 }
 
@@ -69,4 +103,4 @@ async function decisionResponsable(demandeId, { decision, fond_rotatif_id, progr
   return { demande: await consulterParId(demandeId), financement };
 }
 
-module.exports = { creer, consulterTous, consulterParId, resoudreResponsableId, decisionResponsable };
+module.exports = { creer, consulterTous, consulterParId, resoudreResponsableId, resoudreMembreComiteId, consulterBeneficiairesPrevus, decisionResponsable };

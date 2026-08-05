@@ -9,6 +9,7 @@ import Financements from './pages/Financements';
 import DetailFinancement from './pages/DetailFinancement';
 import Demandes from './pages/Demandes';
 import DetailDemande from './pages/DetailDemande';
+import SituationCantons from './pages/SituationCantons';
 import Rapports from './pages/Rapports';
 import Autorites from './pages/Autorites';
 import StatistiquesAutorite from './pages/StatistiquesAutorite';
@@ -103,6 +104,7 @@ function App() {
             <Route path="financements/:id" element={<DetailFinancement />} />
             <Route path="demandes" element={<Demandes />} />
             <Route path="demandes/:id" element={<DetailDemande />} />
+            <Route path="situation-cantons" element={<SituationCantons />} />
             <Route path="rapports" element={<Rapports />} />
             <Route path="autorites" element={<Autorites />} />
           </Route>
