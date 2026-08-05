@@ -9,6 +9,7 @@ import TableauDeBordComiteScreen from '../screens/comite/TableauDeBordComiteScre
 import CreerDemandeScreen from '../screens/comite/CreerDemandeScreen';
 import DetailDemandeComiteScreen from '../screens/comite/DetailDemandeComiteScreen';
 import ListeFinancementsScreen from '../screens/comite/ListeFinancementsScreen';
+import ListeBeneficiairesScreen from '../screens/comite/ListeBeneficiairesScreen';
 import DetailFinancementComiteScreen from '../screens/comite/DetailFinancementComiteScreen';
 import DetailFinancementRemboursementsScreen from '../screens/comite/DetailFinancementRemboursementsScreen';
 import DetailCircuitRemboursementCollectifScreen from '../screens/comite/DetailCircuitRemboursementCollectifScreen';
@@ -25,6 +26,7 @@ function PileComite() {
       <Stack.Screen name="CreerDemande" component={CreerDemandeScreen} options={{ title: 'Nouvelle demande' }} />
       <Stack.Screen name="DetailDemande" component={DetailDemandeComiteScreen} options={{ title: 'Détail de la demande' }} />
       <Stack.Screen name="ListeFinancements" component={ListeFinancementsScreen} options={{ title: 'Remboursements collectifs' }} />
+      <Stack.Screen name="ListeBeneficiaires" component={ListeBeneficiairesScreen} options={{ title: 'Bénéficiaires' }} />
       <Stack.Screen name="DetailFinancementComite" component={DetailFinancementComiteScreen} options={{ title: 'Répartition du financement' }} />
       <Stack.Screen name="DetailFinancementRemboursements" component={DetailFinancementRemboursementsScreen} options={{ title: 'Détail du financement' }} />
       <Stack.Screen name="DetailCircuitRemboursementCollectif" component={DetailCircuitRemboursementCollectifScreen} options={{ title: 'Circuit de validation' }} />

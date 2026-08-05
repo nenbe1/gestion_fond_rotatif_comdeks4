@@ -6,6 +6,12 @@ const Beneficiaire = require('../model/beneficiaire.model');
 
 const SALT_ROUNDS = 10;
 
+function erreur(message, statusCode) {
+  const e = new Error(message);
+  e.statusCode = statusCode;
+  return e;
+}
+
 function genererCodeUtilisateur() {
   return `BEN-${Date.now()}`;
 }
@@ -18,9 +24,7 @@ function genererCodeUtilisateur() {
 async function creer({ nom, prenom, sexe, telephone, email, mot_de_passe, photo, canton_id, age_estime, activite, latitude, longitude }) {
   const existant = await utilisateurRepository.findByTelephone(telephone);
   if (existant) {
-    const erreur = new Error('Un utilisateur avec ce numéro de téléphone existe déjà.');
-    erreur.statusCode = 409;
-    throw erreur;
+    throw erreur('Un utilisateur avec ce numéro de téléphone existe déjà.', 409);
   }
 
   const motDePasseHash = await bcrypt.hash(mot_de_passe, SALT_ROUNDS);
@@ -56,9 +60,7 @@ async function consulterTous(cantonId) {
 async function consulterParId(id) {
   const row = await beneficiaireRepository.findById(id);
   if (!row) {
-    const erreur = new Error('Bénéficiaire introuvable.');
-    erreur.statusCode = 404;
-    throw erreur;
+    throw erreur('Bénéficiaire introuvable.', 404);
   }
   return Beneficiaire.fromRow(row);
 }
@@ -67,6 +69,30 @@ async function modifier(id, { age_estime, activite, latitude, longitude }) {
   await consulterParId(id); // vérifie l'existence, lève 404 sinon
   const row = await beneficiaireRepository.update(id, { age_estime, activite, latitude, longitude });
   return Beneficiaire.fromRow(row);
+}
+
+/**
+ * AJOUT : suppression définitive d'un bénéficiaire (créé par erreur ou
+ * doublon, par exemple). Refusée si l'historique financier existe déjà
+ * (demande le référençant, ou répartition/attribution déjà faite) — la
+ * base de données elle-même protège cette règle via ses clés étrangères
+ * (errno 1451 / code ER_ROW_IS_REFERENCED_2), on se contente ici de
+ * traduire cette erreur SQL en message clair pour la personne qui utilise
+ * l'app.
+ */
+async function supprimer(id) {
+  const beneficiaire = await consulterParId(id); // 404 si introuvable
+  try {
+    await beneficiaireRepository.supprimer(id, beneficiaire.utilisateurId);
+  } catch (err) {
+    if (err.code === 'ER_ROW_IS_REFERENCED_2' || err.errno === 1451) {
+      throw erreur(
+        "Impossible de supprimer : ce bénéficiaire est déjà lié à une demande de financement ou a déjà reçu une répartition. La suppression casserait l'historique.",
+        409
+      );
+    }
+    throw err;
+  }
 }
 
 /**
@@ -102,9 +128,7 @@ async function recalculerStatutMMF(id) {
 async function consulterMonCompte(utilisateurId) {
   const row = await beneficiaireRepository.findByUtilisateurId(utilisateurId);
   if (!row) {
-    const erreur = new Error("L'utilisateur connecté n'est pas enregistré comme bénéficiaire.");
-    erreur.statusCode = 403;
-    throw erreur;
+    throw erreur("L'utilisateur connecté n'est pas enregistré comme bénéficiaire.", 403);
   }
   const beneficiaire = Beneficiaire.fromRow(row);
 
@@ -130,4 +154,4 @@ async function consulterMonCompte(utilisateurId) {
   };
 }
 
-module.exports = { creer, consulterTous, consulterParId, modifier, recalculerStatutMMF, consulterMonCompte };
+module.exports = { creer, consulterTous, consulterParId, modifier, supprimer, recalculerStatutMMF, consulterMonCompte };

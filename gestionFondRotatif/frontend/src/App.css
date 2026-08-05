@@ -49,6 +49,19 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 button.bouton-danger { background: var(--brique); }
 button.bouton-petit { padding: 0.35rem 0.7rem; font-size: 0.78rem; }
 
+/* Boutons d'action réduits à une icône (Modifier ✏️, Supprimer 🗑️,
+   Désactiver 🔒/Réactiver 🔓) dans les tableaux — évite les longs
+   libellés qui se chevauchaient. Le sens reste accessible via l'attribut
+   title (infobulle au survol). */
+button.bouton-icone {
+  padding: 0.35rem 0.55rem;
+  font-size: 0.95rem;
+  line-height: 1;
+  background: var(--gris-clair);
+}
+button.bouton-icone.bouton-danger { background: var(--brique); }
+
+
 /* Groupe d'actions dans une cellule de tableau (liens + boutons) : évite
    qu'ils se chevauchent en les espaçant et en les laissant passer à la
    ligne si la colonne est trop étroite. */

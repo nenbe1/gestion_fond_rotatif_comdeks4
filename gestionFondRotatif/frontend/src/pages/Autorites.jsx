@@ -278,13 +278,14 @@ export default function Autorites() {
                     <td>{libelleCritere(a)}</td>
                     <td>{a.actif ? '✅' : '❌'}</td>
                     <td className="actions-ligne">
-                      <button onClick={() => ouvrirEdition(a)}>Modifier</button>
+                      <button className="bouton-icone" title="Modifier" onClick={() => ouvrirEdition(a)}>✏️</button>
                       <button
-                        className={a.actif ? 'bouton-danger' : ''}
+                        className={`bouton-icone ${a.actif ? 'bouton-danger' : ''}`}
+                        title={a.actif ? 'Désactiver' : 'Réactiver'}
                         disabled={bascculeActifEnCoursId === a.id}
                         onClick={() => gererBasculeActif(a)}
                       >
-                        {bascculeActifEnCoursId === a.id ? '...' : (a.actif ? 'Désactiver' : 'Réactiver')}
+                        {bascculeActifEnCoursId === a.id ? '...' : (a.actif ? '🔒' : '🔓')}
                       </button>
                     </td>
                   </>

@@ -58,6 +58,9 @@ export default function TableauDeBordComiteScreen({ navigation }) {
           <TouchableOpacity style={styles.lienRemboursements} onPress={() => navigation.navigate('ListeFinancements')}>
             <Text style={styles.texteLienRemboursements}>Financements : répartition & remboursements →</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.lienRemboursements} onPress={() => navigation.navigate('ListeBeneficiaires')}>
+            <Text style={styles.texteLienRemboursements}>Bénéficiaires de mon canton →</Text>
+          </TouchableOpacity>
         </View>
       }
       ListEmptyComponent={!chargement ? (

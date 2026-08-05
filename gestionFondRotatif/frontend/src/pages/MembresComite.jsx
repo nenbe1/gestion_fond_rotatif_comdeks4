@@ -260,13 +260,14 @@ export default function MembresComite() {
                     <td>{m.telephone}</td>
                     <td>{m.actif ? '✅' : '❌'}</td>
                     <td className="actions-ligne">
-                      <button onClick={() => ouvrirEdition(m)}>Modifier</button>
+                      <button className="bouton-icone" title="Modifier" onClick={() => ouvrirEdition(m)}>✏️</button>
                       <button
-                        className={m.actif ? 'bouton-danger' : ''}
+                        className={`bouton-icone ${m.actif ? 'bouton-danger' : ''}`}
+                        title={m.actif ? 'Désactiver' : 'Réactiver'}
                         disabled={bascculeActifEnCoursId === m.id}
                         onClick={() => gererBasculeActif(m)}
                       >
-                        {bascculeActifEnCoursId === m.id ? '...' : (m.actif ? 'Désactiver' : 'Réactiver')}
+                        {bascculeActifEnCoursId === m.id ? '...' : (m.actif ? '🔒' : '🔓')}
                       </button>
                     </td>
                   </>

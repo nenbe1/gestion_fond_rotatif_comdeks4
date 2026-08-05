@@ -15,11 +15,24 @@ function reserverAuComite(req, res, next) {
   next();
 }
 
+// CORRECTION : modifier() et supprimer() n'étaient protégés par AUCUNE
+// restriction de rôle avant (n'importe quel compte connecté aurait pu
+// modifier un bénéficiaire). Réservés maintenant au comité (qui l'a créé,
+// sur le terrain) ET à la Responsable (supervision depuis le Web) —
+// jamais au bénéficiaire lui-même ni à une Autorité.
+function reserverAuComiteOuResponsable(req, res, next) {
+  if (req.role !== 'MEMBRE_COMITE' && req.role !== 'RESPONSABLE') {
+    return res.status(403).json({ message: 'Seul un membre du comité ou la Responsable peut modifier/supprimer un bénéficiaire.' });
+  }
+  next();
+}
+
 router.post('/', reserverAuComite, validerCreation, beneficiaireController.creer);
 router.get('/', beneficiaireController.consulterTous);
 router.get('/moi/compte', beneficiaireController.consulterMonCompte);
 router.get('/:id', beneficiaireController.consulterParId);
-router.put('/:id', validerModification, beneficiaireController.modifier);
+router.put('/:id', reserverAuComiteOuResponsable, validerModification, beneficiaireController.modifier);
+router.delete('/:id', reserverAuComiteOuResponsable, beneficiaireController.supprimer);
 router.post('/:id/recalculer-statut', beneficiaireController.recalculerStatut);
 
 module.exports = router;

@@ -50,6 +50,16 @@ async function modifier(req, res) {
   }
 }
 
+/** AJOUT : DELETE /api/beneficiaires/:id — réservé au comité et à la Responsable (voir routes). */
+async function supprimer(req, res) {
+  try {
+    await beneficiaireService.supprimer(req.params.id);
+    res.status(204).send();
+  } catch (erreur) {
+    res.status(erreur.statusCode || 500).json({ message: erreur.message });
+  }
+}
+
 async function recalculerStatut(req, res) {
   try {
     const statut = await beneficiaireService.recalculerStatutMMF(req.params.id);
@@ -69,4 +79,4 @@ async function consulterMonCompte(req, res) {
   }
 }
 
-module.exports = { creer, consulterTous, consulterParId, modifier, recalculerStatut, consulterMonCompte };
+module.exports = { creer, consulterTous, consulterParId, modifier, supprimer, recalculerStatut, consulterMonCompte };

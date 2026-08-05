@@ -151,13 +151,14 @@ export default function Financements() {
                     <td><span className={`badge badge-${f.statut}`}>{f.statut}</span></td>
                     <td className="actions-ligne">
                       <Link to={`/financements/${f.id}`}>Gérer →</Link>
-                      <button className="bouton-petit" onClick={() => ouvrirEdition(f)}>Modifier</button>
+                      <button className="bouton-icone" title="Modifier" onClick={() => ouvrirEdition(f)}>✏️</button>
                       <button
-                        className="bouton-danger bouton-petit"
+                        className="bouton-icone bouton-danger"
+                        title="Supprimer"
                         disabled={suppressionEnCoursId === f.id}
                         onClick={() => gererSuppression(f)}
                       >
-                        {suppressionEnCoursId === f.id ? 'Suppression...' : 'Supprimer'}
+                        {suppressionEnCoursId === f.id ? '...' : '🗑️'}
                       </button>
                     </td>
                   </>

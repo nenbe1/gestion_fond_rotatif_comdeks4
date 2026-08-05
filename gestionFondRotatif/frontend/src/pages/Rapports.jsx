@@ -90,11 +90,12 @@ export default function Rapports() {
               <div className="entete-carte-rapport">
                 <p className="periode-rapport">{r.periodeDebut} → {r.periodeFin}</p>
                 <button
-                  className="bouton-danger bouton-petit"
+                  className="bouton-icone bouton-danger"
+                  title="Supprimer"
                   disabled={suppressionEnCoursId === r.id}
                   onClick={() => gererSuppression(r.id)}
                 >
-                  {suppressionEnCoursId === r.id ? 'Suppression...' : 'Supprimer'}
+                  {suppressionEnCoursId === r.id ? '...' : '🗑️'}
                 </button>
               </div>
               <div className="indicateurs-rapport">

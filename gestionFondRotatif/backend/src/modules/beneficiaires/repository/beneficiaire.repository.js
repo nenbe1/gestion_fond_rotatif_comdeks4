@@ -79,6 +79,19 @@ async function calculerSituationFinanciere(id) {
   return rows[0];
 }
 
+/**
+ * AJOUT : suppression réelle d'un bénéficiaire. On supprime d'abord la
+ * ligne beneficiaire, puis la ligne utilisateur liée (l'héritage
+ * utilisateur_id n'a pas de CASCADE automatique). Si le bénéficiaire est
+ * déjà référencé par une demande (demande_beneficiaire_prevu) ou une
+ * attribution_financement, MySQL rejette la suppression (contrainte de
+ * clé étrangère, errno 1451) — c'est volontaire, voir le service.
+ */
+async function supprimer(id, utilisateurId) {
+  await db.query('DELETE FROM beneficiaire WHERE id = ?', [id]);
+  await db.query('DELETE FROM utilisateur WHERE id = ?', [utilisateurId]);
+}
+
 module.exports = {
   findAll,
   findById,
@@ -87,4 +100,5 @@ module.exports = {
   update,
   mettreAJourStatutMMF,
   calculerSituationFinanciere,
+  supprimer,
 };
