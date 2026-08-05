@@ -37,4 +37,8 @@ async function appelerApi(chemin, options = {}) {
   return donnees;
 }
 
+// AJOUT : exporté pour les cas où on a besoin de l'URL brute (ex: télécharger
+// un fichier binaire/texte via fetch direct, comme la sauvegarde SQL dans
+// Administration.jsx, plutôt que le JSON automatique de appelerApi).
+export { BASE_URL };
 export default appelerApi;

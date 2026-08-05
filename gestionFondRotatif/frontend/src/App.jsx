@@ -12,6 +12,7 @@ import DetailDemande from './pages/DetailDemande';
 import SituationCantons from './pages/SituationCantons';
 import Rapports from './pages/Rapports';
 import Autorites from './pages/Autorites';
+import Administration from './pages/Administration';
 import StatistiquesAutorite from './pages/StatistiquesAutorite';
 import './App.css';
 
@@ -107,6 +108,7 @@ function App() {
             <Route path="situation-cantons" element={<SituationCantons />} />
             <Route path="rapports" element={<Rapports />} />
             <Route path="autorites" element={<Autorites />} />
+            <Route path="administration" element={<Administration />} />
           </Route>
         </Routes>
       </BrowserRouter>
