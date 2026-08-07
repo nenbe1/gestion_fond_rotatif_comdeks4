@@ -11,6 +11,28 @@ async function creerIndividuel(req, res) {
   }
 }
 
+/** AJOUT : PUT /api/remboursements/individuel/:id/confirmer — double validation, Trésorier uniquement. */
+async function confirmerIndividuel(req, res) {
+  try {
+    const membre = await membreComiteRepository.findByUtilisateurId(req.utilisateurId);
+    const remboursement = await remboursementService.confirmerIndividuel(req.params.id, membre?.canton_id);
+    res.status(200).json({ remboursement });
+  } catch (erreur) {
+    res.status(erreur.statusCode || 500).json({ message: erreur.message });
+  }
+}
+
+/** AJOUT : PUT /api/remboursements/individuel/:id/rejeter — corrige une erreur de saisie avant confirmation. */
+async function rejeterIndividuel(req, res) {
+  try {
+    const membre = await membreComiteRepository.findByUtilisateurId(req.utilisateurId);
+    const remboursement = await remboursementService.rejeterIndividuel(req.params.id, membre?.canton_id);
+    res.status(200).json({ remboursement });
+  } catch (erreur) {
+    res.status(erreur.statusCode || 500).json({ message: erreur.message });
+  }
+}
+
 async function consulterIndividuelParAttribution(req, res) {
   try {
     const remboursements = await remboursementService.consulterIndividuelParAttribution(req.params.attributionId);
@@ -49,6 +71,6 @@ async function consulterCollectifParId(req, res) {
 }
 
 module.exports = {
-  creerIndividuel, consulterIndividuelParAttribution,
+  creerIndividuel, confirmerIndividuel, rejeterIndividuel, consulterIndividuelParAttribution,
   creerCollectif, consulterCollectifParFinancement, consulterCollectifParId,
 };

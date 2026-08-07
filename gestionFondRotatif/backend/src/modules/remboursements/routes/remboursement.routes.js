@@ -4,6 +4,7 @@ const router = express.Router();
 const remboursementController = require('../controller/remboursement.controller');
 const { validerCreationIndividuel, validerCreationCollectif } = require('../validator/remboursement.validator');
 const { verifierToken } = require('../../../middlewares/auth.middleware');
+const { reserverParHabilitation } = require('../../../middlewares/habilitation.middleware');
 
 router.use(verifierToken);
 
@@ -19,11 +20,18 @@ function reserverAuComite(req, res, next) {
   next();
 }
 
-// Niveau individuel
+// CORRECTION : la confirmation (double validation) était réservée en dur
+// au Trésorier ("fonction_code === 'TRESORIER'"). Elle passe maintenant
+// par le système d'habilitations (Paramétrage > Fonctions) : n'importe
+// quelle fonction ayant l'habilitation CONFIRMER_REMBOURSEMENT cochée
+// peut confirmer — plus besoin de modifier le code pour changer cette
+// règle, juste une case à cocher.
 router.post('/individuel', reserverAuComite, validerCreationIndividuel, remboursementController.creerIndividuel);
+router.put('/individuel/:id/confirmer', reserverParHabilitation('CONFIRMER_REMBOURSEMENT'), remboursementController.confirmerIndividuel);
+router.put('/individuel/:id/rejeter', reserverParHabilitation('CONFIRMER_REMBOURSEMENT'), remboursementController.rejeterIndividuel);
 router.get('/individuel/attribution/:attributionId', remboursementController.consulterIndividuelParAttribution);
 
-// Niveau collectif
+// Niveau collectif (inchangé)
 router.post('/collectif', reserverAuComite, validerCreationCollectif, remboursementController.creerCollectif);
 router.get('/collectif/financement/:financementId', remboursementController.consulterCollectifParFinancement);
 router.get('/collectif/:id', remboursementController.consulterCollectifParId);

@@ -116,13 +116,26 @@ async function resoudreAutoriteParUtilisateur(utilisateurId) {
   return Autorite.fromRow(row);
 }
 
+// CORRECTION : renvoie maintenant aussi "repartition" — le détail par
+// canton et par activité (voir calculerRepartition), en plus des 3
+// totaux globaux déjà présents. Avant, le délégué ne voyait qu'un
+// agrégat unique, sans pouvoir dire QUEL canton ou QUELLE activité
+// concentre les bénéficiaires/montants.
 async function consulterMesStatistiques(utilisateurId) {
   const autorite = await resoudreAutoriteParUtilisateur(utilisateurId);
-  const stats = await autoriteRepository.calculerStatistiques({
-    typeCritere: autorite.typeCritere,
-    domaineId: autorite.domaineId,
-    valeurCritere: autorite.valeurCritere,
-  });
+
+  const [stats, repartitionBrute] = await Promise.all([
+    autoriteRepository.calculerStatistiques({
+      typeCritere: autorite.typeCritere,
+      domaineId: autorite.domaineId,
+      valeurCritere: autorite.valeurCritere,
+    }),
+    autoriteRepository.calculerRepartition({
+      typeCritere: autorite.typeCritere,
+      domaineId: autorite.domaineId,
+      valeurCritere: autorite.valeurCritere,
+    }),
+  ]);
 
   return {
     fonction: autorite.fonction,
@@ -130,6 +143,12 @@ async function consulterMesStatistiques(utilisateurId) {
     nombreBeneficiaires: stats.nombre_beneficiaires,
     nombreFinancements: stats.nombre_financements,
     montantTotal: Number(stats.montant_total),
+    repartition: repartitionBrute.map((r) => ({
+      cantonNom: r.canton_nom,
+      activite: r.activite,
+      nombreBeneficiaires: r.nombre_beneficiaires,
+      montantTotal: Number(r.montant_total),
+    })),
   };
 }
 

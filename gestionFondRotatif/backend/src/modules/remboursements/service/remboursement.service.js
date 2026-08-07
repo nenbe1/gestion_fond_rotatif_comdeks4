@@ -13,9 +13,13 @@ function erreur(message, statusCode) {
 }
 
 // ---------- Niveau individuel ----------
-// Rappel de conception : le bénéficiaire a déjà remis l'argent au comité
-// avant l'enregistrement — c'est un fait accompli, pas de circuit de
-// validation ici (contrairement au niveau collectif).
+// CORRECTION (double validation) : le bénéficiaire remet l'argent
+// physiquement au Trésorier, qui l'enregistre — mais ça ne compte pas
+// encore pour lui à ce stade (statut 'EnAttente'). C'est seulement
+// quand le Trésorier confirme (après avoir vérifié la somme) que le
+// remboursement passe à 'Confirme' et impacte réellement la situation
+// du bénéficiaire. Avant, un remboursement comptait dès son
+// enregistrement, sans étape de vérification.
 
 async function creerIndividuel({ attribution_financement_id, montant, date_versement, observation }, cantonIdAppelant) {
   const attribution = await attributionRepository.findById(attribution_financement_id);
@@ -28,8 +32,12 @@ async function creerIndividuel({ attribution_financement_id, montant, date_verse
     }
   }
 
-  const dejaRembourse = await attributionRepository.sommeRembourseePourAttribution(attribution_financement_id);
-  const resteAPayer = Number(attribution.montant_attribue) - dejaRembourse;
+  // Ne compte que ce qui est déjà Confirme (voir attribution.repository) :
+  // un remboursement encore EnAttente n'a pas encore réduit ce qu'il
+  // reste à payer, donc le plafond se vérifie sur les seuls montants
+  // déjà confirmés + celui qu'on est en train d'enregistrer.
+  const dejaConfirme = await attributionRepository.sommeRembourseePourAttribution(attribution_financement_id);
+  const resteAPayer = Number(attribution.montant_attribue) - dejaConfirme;
   if (Number(montant) > resteAPayer) {
     throw erreur(`Montant trop élevé : il reste ${resteAPayer} à rembourser sur cette attribution.`, 409);
   }
@@ -38,11 +46,55 @@ async function creerIndividuel({ attribution_financement_id, montant, date_verse
     attribution_financement_id, montant, date_versement, observation,
   });
 
-  // Recalcul automatique du statut MMF du bénéficiaire concerné (conçu
-  // ensemble : le statut se met à jour à chaque événement pertinent).
-  await beneficiaireService.recalculerStatutMMF(attribution.beneficiaire_id);
-
   return RemboursementBeneficiaire.fromRow(row);
+}
+
+/**
+ * Confirme un remboursement individuel préalablement enregistré — c'est
+ * seulement à cette étape qu'il compte réellement pour le bénéficiaire
+ * (recalcul de son statut MMF déclenché ici, pas à la création).
+ * @throws {Error} 404 si introuvable, 409 si déjà traité
+ */
+async function confirmerIndividuel(id, cantonIdAppelant) {
+  const row = await remboursementRepository.findIndividuelById(id);
+  if (!row) throw erreur('Remboursement introuvable.', 404);
+  if (row.statut !== 'EnAttente') throw erreur('Ce remboursement a déjà été traité.', 409);
+
+  const attribution = await attributionRepository.findById(row.attribution_financement_id);
+  if (cantonIdAppelant) {
+    const cantonFinancement = await financementRepository.trouverCantonId(attribution.financement_id);
+    if (cantonFinancement !== null && cantonFinancement !== cantonIdAppelant) {
+      throw erreur('Ce remboursement appartient à un autre canton.', 403);
+    }
+  }
+
+  const updated = await remboursementRepository.majStatutIndividuel(id, 'Confirme');
+  await beneficiaireService.recalculerStatutMMF(attribution.beneficiaire_id);
+  return RemboursementBeneficiaire.fromRow(updated);
+}
+
+/**
+ * AJOUT : permet au Trésorier de corriger une erreur de saisie avant
+ * confirmation (ex: montant faux tapé par erreur) — annule
+ * l'enregistrement sans jamais avoir compté pour le bénéficiaire, vu
+ * qu'un remboursement EnAttente n'affecte pas encore sa situation.
+ * @throws {Error} 404 si introuvable, 409 si déjà traité
+ */
+async function rejeterIndividuel(id, cantonIdAppelant) {
+  const row = await remboursementRepository.findIndividuelById(id);
+  if (!row) throw erreur('Remboursement introuvable.', 404);
+  if (row.statut !== 'EnAttente') throw erreur('Ce remboursement a déjà été traité.', 409);
+
+  const attribution = await attributionRepository.findById(row.attribution_financement_id);
+  if (cantonIdAppelant) {
+    const cantonFinancement = await financementRepository.trouverCantonId(attribution.financement_id);
+    if (cantonFinancement !== null && cantonFinancement !== cantonIdAppelant) {
+      throw erreur('Ce remboursement appartient à un autre canton.', 403);
+    }
+  }
+
+  const updated = await remboursementRepository.majStatutIndividuel(id, 'Rejete');
+  return RemboursementBeneficiaire.fromRow(updated);
 }
 
 async function consulterIndividuelParAttribution(attributionId) {
@@ -50,7 +102,7 @@ async function consulterIndividuelParAttribution(attributionId) {
   return rows.map(RemboursementBeneficiaire.fromRow);
 }
 
-// ---------- Niveau collectif ----------
+// ---------- Niveau collectif (inchangé) ----------
 // Protégé par le même circuit de validation à 3 niveaux que les demandes
 // de financement (Trésorier -> Commissaire -> Président du comité).
 
@@ -120,7 +172,7 @@ async function rejeterApresValidation(remboursementCollectifId) {
 }
 
 module.exports = {
-  creerIndividuel, consulterIndividuelParAttribution,
+  creerIndividuel, confirmerIndividuel, rejeterIndividuel, consulterIndividuelParAttribution,
   creerCollectif, consulterCollectifParFinancement, consulterCollectifParId,
   confirmerApresValidation, rejeterApresValidation,
 };

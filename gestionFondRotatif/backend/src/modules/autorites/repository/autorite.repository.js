@@ -49,22 +49,27 @@ async function update(id, { fonction, type_critere, domaine_id, valeur_critere, 
   return findById(id);
 }
 
-async function calculerStatistiques({ typeCritere, domaineId, valeurCritere }) {
-  let condition;
-  let params;
-
+/**
+ * Construit la condition SQL correspondant au critère du délégué
+ * (DOMAINE / SEXE / AGE_MAX) — factorisé, utilisé à la fois par
+ * calculerStatistiques (totaux) et calculerRepartition (détail par
+ * canton/activité).
+ */
+function construireConditionCritere({ typeCritere, domaineId, valeurCritere }) {
   if (typeCritere === 'DOMAINE') {
-    condition = 'dem.domaine_id = ?';
-    params = [domaineId];
-  } else if (typeCritere === 'SEXE') {
-    condition = 'u.sexe = ?';
-    params = [valeurCritere];
-  } else if (typeCritere === 'AGE_MAX') {
-    condition = 'b.age_estime IS NOT NULL AND b.age_estime <= ?';
-    params = [Number(valeurCritere)];
-  } else {
-    throw new Error(`type_critere inconnu : ${typeCritere}`);
+    return { condition: 'dem.domaine_id = ?', params: [domaineId] };
   }
+  if (typeCritere === 'SEXE') {
+    return { condition: 'u.sexe = ?', params: [valeurCritere] };
+  }
+  if (typeCritere === 'AGE_MAX') {
+    return { condition: 'b.age_estime IS NOT NULL AND b.age_estime <= ?', params: [Number(valeurCritere)] };
+  }
+  throw new Error(`type_critere inconnu : ${typeCritere}`);
+}
+
+async function calculerStatistiques({ typeCritere, domaineId, valeurCritere }) {
+  const { condition, params } = construireConditionCritere({ typeCritere, domaineId, valeurCritere });
 
   const [rows] = await db.query(
     `SELECT
@@ -82,4 +87,38 @@ async function calculerStatistiques({ typeCritere, domaineId, valeurCritere }) {
   return rows[0];
 }
 
-module.exports = { findAll, findById, findByUtilisateurId, create, update, calculerStatistiques };
+// AJOUT : détail "tel nombre de bénéficiaires de tel canton ont reçu
+// telle somme pour telle activité" — même critère d'accès du délégué
+// que calculerStatistiques, mais regroupé par canton du bénéficiaire et
+// par son activité, au lieu d'un seul total global.
+// CORRECTION : l'activité est un champ texte libre (saisi par le
+// comité) — deux bénéficiaires "Agricultrice" et "agricultrice " (casse
+// ou espace différents) étaient donc comptés comme deux groupes séparés
+// au lieu d'un seul. On regroupe maintenant sur une version normalisée
+// (espaces superflus retirés, casse ignorée via LOWER), tout en
+// affichant une orthographe représentative du groupe (MIN, arbitraire
+// mais stable) plutôt que le texte brut exact de chaque ligne.
+async function calculerRepartition({ typeCritere, domaineId, valeurCritere }) {
+  const { condition, params } = construireConditionCritere({ typeCritere, domaineId, valeurCritere });
+
+  const [rows] = await db.query(
+    `SELECT
+       COALESCE(c.nom, 'Canton non renseigné') AS canton_nom,
+       COALESCE(MIN(TRIM(b.activite)), 'Activité non renseignée') AS activite,
+       COUNT(DISTINCT a.beneficiaire_id) AS nombre_beneficiaires,
+       COALESCE(SUM(a.montant_attribue), 0) AS montant_total
+     FROM attribution_financement a
+     INNER JOIN financement f ON f.id = a.financement_id
+     INNER JOIN beneficiaire b ON b.id = a.beneficiaire_id
+     INNER JOIN utilisateur u ON u.id = b.utilisateur_id
+     INNER JOIN demande_financement dem ON dem.id = f.demande_financement_id
+     LEFT JOIN canton c ON c.id = b.canton_id
+     WHERE ${condition}
+     GROUP BY c.nom, LOWER(TRIM(b.activite))
+     ORDER BY c.nom ASC, activite ASC`,
+    params
+  );
+  return rows;
+}
+
+module.exports = { findAll, findById, findByUtilisateurId, create, update, calculerStatistiques, calculerRepartition };

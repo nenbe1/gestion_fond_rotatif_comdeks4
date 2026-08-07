@@ -4,6 +4,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import appelerApi from '../../api/client';
 import { couleurs } from '../../theme/couleurs';
 
+const LIBELLE_STATUT = { EnAttente: 'En attente de confirmation', Confirme: 'Confirmé', Rejete: 'Annulé' };
+
 /**
  * Détail des remboursements d'un financement reçu par le bénéficiaire —
  * STRICTEMENT en lecture seule. Le bénéficiaire remet l'argent en main
@@ -11,17 +13,30 @@ import { couleurs } from '../../theme/couleurs';
  * comité qui enregistre chaque remboursement de son côté. Le bénéficiaire
  * ne fait ici que consulter ce qui a déjà été enregistré pour lui, et son
  * reste à payer individuel (jamais un total global du fonds).
+ *
+ * CORRECTION (double validation) : un remboursement fraîchement
+ * enregistré par le comité est "En attente de confirmation" — il ne
+ * compte pas encore dans le reste à payer tant que le Trésorier ne l'a
+ * pas confirmé (voir le libellé sur chaque ligne). Le reste à payer
+ * vient maintenant directement du backend (/attributions/:id/reste-a-payer),
+ * qui applique déjà cette règle, au lieu d'un calcul approximatif fait
+ * ici (qui comptait à tort les remboursements pas encore confirmés).
  */
 export default function DetailFinancementScreen({ route }) {
   const { attributionId, montantAttribue, codeFinancement } = route.params;
   const [remboursements, setRemboursements] = useState([]);
+  const [resteInfo, setResteInfo] = useState(null);
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState('');
 
   const charger = useCallback(async () => {
     try {
-      const donnees = await appelerApi(`/remboursements/individuel/attribution/${attributionId}`);
+      const [donnees, reste] = await Promise.all([
+        appelerApi(`/remboursements/individuel/attribution/${attributionId}`),
+        appelerApi(`/attributions/${attributionId}/reste-a-payer`),
+      ]);
       setRemboursements(donnees.remboursements);
+      setResteInfo(reste);
       setErreur('');
     } catch (err) {
       setErreur(err.message);
@@ -32,9 +47,7 @@ export default function DetailFinancementScreen({ route }) {
 
   useFocusEffect(useCallback(() => { charger(); }, [charger]));
 
-  const totalRembourse = remboursements.reduce((somme, r) => somme + Number(r.montant), 0);
-  // Majoration de 10% figée par financement (voir remboursement.service côté backend).
-  const resteAPayer = Math.max(Number(montantAttribue) * 1.10 - totalRembourse, 0);
+  const resteAPayer = resteInfo?.resteAPayer ?? 0;
 
   return (
     <FlatList
@@ -62,6 +75,7 @@ export default function DetailFinancementScreen({ route }) {
 
           <Text style={styles.note}>
             Remettez votre remboursement en main propre à votre membre du comité — c'est lui qui l'enregistre ici.
+            Ça n'est compté ci-dessus qu'une fois confirmé par le Trésorier.
           </Text>
 
           <Text style={styles.sousTitreListe}>Historique de mes remboursements</Text>
@@ -69,7 +83,10 @@ export default function DetailFinancementScreen({ route }) {
       }
       renderItem={({ item }) => (
         <View style={styles.ligne}>
-          <Text style={styles.dateLigne}>{new Date(item.dateVersement).toLocaleDateString('fr-FR')}</Text>
+          <View>
+            <Text style={styles.dateLigne}>{new Date(item.dateVersement).toLocaleDateString('fr-FR')}</Text>
+            <Text style={styles.statutLigne}>{LIBELLE_STATUT[item.statut] || item.statut}</Text>
+          </View>
           <Text style={styles.montantLigne}>{Number(item.montant).toLocaleString('fr-FR')} FCFA</Text>
         </View>
       )}
@@ -91,6 +108,7 @@ const styles = StyleSheet.create({
   sousTitreListe: { fontSize: 15, fontWeight: '600', color: couleurs.grisTexte, marginBottom: 8 },
   ligne: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: couleurs.blanc, borderRadius: 8, padding: 14, marginBottom: 8 },
   dateLigne: { color: couleurs.grisTexte },
+  statutLigne: { fontSize: 11, color: '#888', marginTop: 2 },
   montantLigne: { fontWeight: '700', color: couleurs.vertMoyen },
   vide: { textAlign: 'center', color: '#888', marginTop: 10 },
 });

@@ -119,10 +119,16 @@ async function recalculerStatutMMF(id) {
 }
 
 /**
+ * CORRECTION : chaque financement affiche maintenant son reste à payer
+ * exact (montant attribué + majoration figée - ce qui est déjà
+ * CONFIRMÉ par le Trésorier), au lieu d'un simple total global qui ne
+ * tenait pas compte de la majoration ni de la distinction
+ * "enregistré" / "confirmé" introduite par la double validation des
+ * remboursements individuels.
+ *
  * Consultation par le bénéficiaire connecté de son propre compte
- * (Mobile) : ses infos, ses financements reçus, et sa situation
- * financière globale (attribué / remboursé / reste dû avec la
- * majoration de 10% figée par financement).
+ * (Mobile) : ses infos, chacun de ses financements avec son propre
+ * reste à payer, et une situation globale agrégée.
  * @throws {Error} 403 si l'utilisateur connecté n'est pas un bénéficiaire
  */
 async function consulterMonCompte(utilisateurId) {
@@ -132,25 +138,41 @@ async function consulterMonCompte(utilisateurId) {
   }
   const beneficiaire = Beneficiaire.fromRow(row);
 
-  const [situation, financements] = await Promise.all([
-    beneficiaireRepository.calculerSituationFinanciere(beneficiaire.id),
-    attributionRepository.findByBeneficiaireId(beneficiaire.id),
-  ]);
+  const financementsRows = await attributionRepository.findByBeneficiaireId(beneficiaire.id);
+
+  const financements = await Promise.all(financementsRows.map(async (f) => {
+    const montantRembourse = await attributionRepository.sommeRembourseePourAttribution(f.id);
+    const montantAttribue = Number(f.montant_attribue);
+    const tauxMajoration = Number(f.taux_majoration_applique);
+    const montantDu = montantAttribue * (1 + tauxMajoration / 100);
+    return {
+      id: f.id,
+      codeFinancement: f.code_financement,
+      montantAttribue,
+      montantFinancementTotal: Number(f.montant_financement),
+      dateAttribution: f.date_attribution,
+      tauxMajorationApplique: tauxMajoration,
+      montantDu,
+      montantRembourse,
+      resteAPayer: Math.max(montantDu - montantRembourse, 0),
+      soldee: montantRembourse >= montantDu,
+    };
+  }));
+
+  const totalAttribue = financements.reduce((s, f) => s + f.montantAttribue, 0);
+  const totalDu = financements.reduce((s, f) => s + f.montantDu, 0);
+  const totalRembourse = financements.reduce((s, f) => s + f.montantRembourse, 0);
 
   return {
     beneficiaire,
     situation: {
-      nombreFinancements: situation.nb_attributions,
-      totalAttribue: Number(situation.total_attribue),
-      totalRembourse: Number(situation.total_rembourse),
+      nombreFinancements: financements.length,
+      totalAttribue,
+      totalDu,
+      totalRembourse,
+      resteAPayer: Math.max(totalDu - totalRembourse, 0),
     },
-    financements: financements.map((f) => ({
-      id: f.id,
-      codeFinancement: f.code_financement,
-      montantAttribue: Number(f.montant_attribue),
-      montantFinancementTotal: Number(f.montant_financement),
-      dateAttribution: f.date_attribution,
-    })),
+    financements,
   };
 }
 

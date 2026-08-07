@@ -4,7 +4,7 @@ const SELECT_BASE = `
   SELECT
     af.*, b.utilisateur_id AS beneficiaire_utilisateur_id,
     u.nom AS beneficiaire_nom, u.prenom AS beneficiaire_prenom,
-    f.montant_financement, f.code_financement
+    f.montant_financement, f.code_financement, f.taux_majoration_applique
   FROM attribution_financement af
   INNER JOIN beneficiaire b ON b.id = af.beneficiaire_id
   INNER JOIN utilisateur u ON u.id = b.utilisateur_id
@@ -56,10 +56,14 @@ async function create({ financement_id, beneficiaire_id, montant_attribue }) {
   return findById(result.insertId);
 }
 
-/** Total remboursé pour une attribution (via remboursement_beneficiaire liés). */
+// CORRECTION : ne compte désormais que les remboursements CONFIRMÉS par
+// le Trésorier (statut = 'Confirme') — avant l'ajout de la double
+// validation, un remboursement juste "enregistré" (EnAttente) comptait
+// déjà comme réellement payé, ce qui n'était pas fiable tant que le
+// Trésorier n'avait pas confirmé avoir bien reçu et vérifié la somme.
 async function sommeRembourseePourAttribution(attributionId) {
   const [rows] = await db.query(
-    'SELECT COALESCE(SUM(montant), 0) AS total FROM remboursement_beneficiaire WHERE attribution_financement_id = ?',
+    "SELECT COALESCE(SUM(montant), 0) AS total FROM remboursement_beneficiaire WHERE attribution_financement_id = ? AND statut = 'Confirme'",
     [attributionId]
   );
   return Number(rows[0].total);

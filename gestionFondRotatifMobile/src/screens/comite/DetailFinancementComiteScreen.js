@@ -2,20 +2,32 @@ import { useCallback, useState } from 'react';
 import { View, Text, FlatList, ScrollView, TextInput, TouchableOpacity, StyleSheet, RefreshControl, Alert, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import appelerApi from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
 import { couleurs } from '../../theme/couleurs';
 
 /**
  * Écran central du comité pour un financement : c'est ici qu'il
  * répartit la somme reçue entre les bénéficiaires (chacun n'a jamais
- * qu'une vue individuelle de sa propre part), et qu'il enregistre les
- * remboursements qu'il collecte physiquement auprès de chacun d'eux.
+ * qu'une vue individuelle de sa propre part), et que le Trésorier
+ * enregistre puis confirme les remboursements qu'il collecte
+ * physiquement auprès de chacun d'eux (double validation, décidée
+ * ensemble : n'importe quel membre du comité peut enregistrer ce qu'il
+ * a vu remettre, mais seul le Trésorier confirme après vérification —
+ * c'est seulement à la confirmation que ça compte pour le bénéficiaire).
  * Le remboursement collectif au fonds (circuit de validation à part)
  * est accessible depuis ici via un lien dédié.
  */
 export default function DetailFinancementComiteScreen({ route, navigation }) {
   const { financementId, codeFinancement, montantFinancement } = route.params;
+  const { utilisateur } = useAuth();
+  // CORRECTION : n'est plus figé sur "fonction_code === 'TRESORIER'" —
+  // suit maintenant l'habilitation CONFIRMER_REMBOURSEMENT assignée à la
+  // fonction (configurable dans Paramétrage > Fonctions côté Web).
+  const peutConfirmer = utilisateur?.habilitations?.includes('CONFIRMER_REMBOURSEMENT') ?? false;
+
   const [attributions, setAttributions] = useState([]);
   const [restants, setRestants] = useState({}); // { [attributionId]: resteAPayer }
+  const [enAttenteParAttribution, setEnAttenteParAttribution] = useState({}); // { [attributionId]: [remboursements EnAttente] }
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState('');
 
@@ -27,17 +39,26 @@ export default function DetailFinancementComiteScreen({ route, navigation }) {
 
   const [attributionEnRemboursement, setAttributionEnRemboursement] = useState(null); // id ou null
   const [montantRembourse, setMontantRembourse] = useState('');
+  const [confirmationEnCoursId, setConfirmationEnCoursId] = useState(null);
 
   const charger = useCallback(async () => {
     try {
       const donnees = await appelerApi(`/attributions/financement/${financementId}`);
       setAttributions(donnees.attributions);
+
       const entries = await Promise.all(
-        donnees.attributions.map((a) =>
-          appelerApi(`/attributions/${a.id}/reste-a-payer`).then((r) => [a.id, r.resteAPayer])
-        )
+        donnees.attributions.map((a) => appelerApi(`/attributions/${a.id}/reste-a-payer`).then((r) => [a.id, r.resteAPayer]))
       );
       setRestants(Object.fromEntries(entries));
+
+      const entreesEnAttente = await Promise.all(
+        donnees.attributions.map((a) =>
+          appelerApi(`/remboursements/individuel/attribution/${a.id}`)
+            .then((r) => [a.id, r.remboursements.filter((x) => x.statut === 'EnAttente')])
+        )
+      );
+      setEnAttenteParAttribution(Object.fromEntries(entreesEnAttente));
+
       setErreur('');
     } catch (err) {
       setErreur(err.message);
@@ -116,6 +137,43 @@ export default function DetailFinancementComiteScreen({ route, navigation }) {
     }
   }
 
+  // AJOUT : confirmation par le Trésorier — c'est cette étape qui fait
+  // réellement compter le remboursement pour le bénéficiaire.
+  async function gererConfirmation(remboursementId) {
+    setConfirmationEnCoursId(remboursementId);
+    try {
+      await appelerApi(`/remboursements/individuel/${remboursementId}/confirmer`, { method: 'PUT' });
+      await charger();
+    } catch (err) {
+      Alert.alert('Erreur', err.message);
+    } finally {
+      setConfirmationEnCoursId(null);
+    }
+  }
+
+  function confirmerRejet(remboursementId) {
+    Alert.alert(
+      'Annuler cet enregistrement ?',
+      "Le montant n'a jamais compté pour le bénéficiaire (il fallait ta confirmation) — cette action l'annule simplement.",
+      [
+        { text: 'Retour', style: 'cancel' },
+        { text: 'Annuler l\'enregistrement', style: 'destructive', onPress: () => gererRejet(remboursementId) },
+      ]
+    );
+  }
+
+  async function gererRejet(remboursementId) {
+    setConfirmationEnCoursId(remboursementId);
+    try {
+      await appelerApi(`/remboursements/individuel/${remboursementId}/rejeter`, { method: 'PUT' });
+      await charger();
+    } catch (err) {
+      Alert.alert('Erreur', err.message);
+    } finally {
+      setConfirmationEnCoursId(null);
+    }
+  }
+
   return (
     <FlatList
       style={styles.conteneur}
@@ -180,42 +238,78 @@ export default function DetailFinancementComiteScreen({ route, navigation }) {
           <Text style={styles.sousTitreListe}>Parts attribuées</Text>
         </View>
       }
-      renderItem={({ item }) => (
-        <View style={styles.carteBeneficiaire}>
-          <View style={styles.enteteCarteBeneficiaire}>
-            <Text style={styles.nomBeneficiaire}>{item.beneficiaireNom} {item.beneficiairePrenom}</Text>
-            <Text style={styles.partBeneficiaire}>{Number(item.montantAttribue).toLocaleString('fr-FR')} FCFA</Text>
-          </View>
-          <Text style={styles.resteBeneficiaire}>
-            Reste à percevoir de sa part : {(restants[item.id] ?? 0).toLocaleString('fr-FR')} FCFA
-          </Text>
-
-          {attributionEnRemboursement === item.id ? (
-            <View style={styles.formulaireInline}>
-              <TextInput
-                style={styles.champ}
-                keyboardType="numeric"
-                value={montantRembourse}
-                onChangeText={setMontantRembourse}
-                placeholder="Montant reçu (FCFA)"
-                autoFocus
-              />
-              <View style={styles.actionsFormulaire}>
-                <TouchableOpacity style={styles.boutonAnnuler} onPress={() => setAttributionEnRemboursement(null)}>
-                  <Text style={styles.texteBoutonAnnuler}>Annuler</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.boutonValider} onPress={() => gererEnregistrementRemboursement(item.id)} disabled={envoiEnCours}>
-                  {envoiEnCours ? <ActivityIndicator color={couleurs.blanc} /> : <Text style={styles.texteBoutonValider}>Valider</Text>}
-                </TouchableOpacity>
-              </View>
+      renderItem={({ item }) => {
+        const enAttente = enAttenteParAttribution[item.id] || [];
+        return (
+          <View style={styles.carteBeneficiaire}>
+            <View style={styles.enteteCarteBeneficiaire}>
+              <Text style={styles.nomBeneficiaire}>{item.beneficiaireNom} {item.beneficiairePrenom}</Text>
+              <Text style={styles.partBeneficiaire}>{Number(item.montantAttribue).toLocaleString('fr-FR')} FCFA</Text>
             </View>
-          ) : (
-            <TouchableOpacity style={styles.boutonRembourser} onPress={() => setAttributionEnRemboursement(item.id)}>
-              <Text style={styles.texteBoutonRembourser}>Enregistrer un remboursement reçu</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      )}
+            <Text style={styles.resteBeneficiaire}>
+              Reste à percevoir de sa part : {(restants[item.id] ?? 0).toLocaleString('fr-FR')} FCFA
+            </Text>
+
+            {enAttente.length > 0 && (
+              <View style={styles.blocEnAttente}>
+                <Text style={styles.titreEnAttente}>En attente de confirmation</Text>
+                {enAttente.map((r) => (
+                  <View key={r.id} style={styles.ligneEnAttente}>
+                    <Text style={styles.montantEnAttente}>{Number(r.montant).toLocaleString('fr-FR')} FCFA</Text>
+                    {peutConfirmer ? (
+                      <View style={{ flexDirection: 'row', gap: 6 }}>
+                        <TouchableOpacity
+                          style={styles.boutonConfirmer}
+                          disabled={confirmationEnCoursId === r.id}
+                          onPress={() => gererConfirmation(r.id)}
+                        >
+                          {confirmationEnCoursId === r.id
+                            ? <ActivityIndicator color={couleurs.blanc} size="small" />
+                            : <Text style={styles.texteBoutonConfirmer}>Confirmer</Text>}
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.boutonAnnulerPetit}
+                          disabled={confirmationEnCoursId === r.id}
+                          onPress={() => confirmerRejet(r.id)}
+                        >
+                          <Text style={styles.texteBoutonAnnulerPetit}>Annuler</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <Text style={styles.attenteTresorier}>En attente de confirmation</Text>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {attributionEnRemboursement === item.id ? (
+              <View style={styles.formulaireInline}>
+                <TextInput
+                  style={styles.champ}
+                  keyboardType="numeric"
+                  value={montantRembourse}
+                  onChangeText={setMontantRembourse}
+                  placeholder="Montant reçu (FCFA)"
+                  autoFocus
+                />
+                <View style={styles.actionsFormulaire}>
+                  <TouchableOpacity style={styles.boutonAnnuler} onPress={() => setAttributionEnRemboursement(null)}>
+                    <Text style={styles.texteBoutonAnnuler}>Annuler</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.boutonValider} onPress={() => gererEnregistrementRemboursement(item.id)} disabled={envoiEnCours}>
+                    {envoiEnCours ? <ActivityIndicator color={couleurs.blanc} /> : <Text style={styles.texteBoutonValider}>Valider</Text>}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.boutonRembourser} onPress={() => setAttributionEnRemboursement(item.id)}>
+                <Text style={styles.texteBoutonRembourser}>Enregistrer un remboursement reçu</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        );
+      }}
       ListEmptyComponent={!chargement ? <Text style={styles.vide}>Aucune part encore attribuée.</Text> : null}
     />
   );
@@ -254,4 +348,14 @@ const styles = StyleSheet.create({
   boutonRembourser: { marginTop: 10, borderRadius: 6, borderWidth: 1, borderColor: couleurs.vertMoyen, padding: 8, alignItems: 'center' },
   texteBoutonRembourser: { color: couleurs.vertMoyen, fontSize: 12, fontWeight: '600' },
   vide: { textAlign: 'center', color: '#888', marginTop: 10 },
+
+  blocEnAttente: { backgroundColor: '#fdf3e0', borderRadius: 8, padding: 10, marginTop: 10 },
+  titreEnAttente: { fontSize: 11, fontWeight: '700', color: couleurs.orMil, textTransform: 'uppercase', marginBottom: 6 },
+  ligneEnAttente: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  montantEnAttente: { fontWeight: '600', color: couleurs.grisTexte },
+  attenteTresorier: { fontSize: 11, color: '#888', fontStyle: 'italic' },
+  boutonConfirmer: { backgroundColor: couleurs.vertMoyen, borderRadius: 6, paddingVertical: 6, paddingHorizontal: 10 },
+  texteBoutonConfirmer: { color: couleurs.blanc, fontSize: 11, fontWeight: '600' },
+  boutonAnnulerPetit: { borderRadius: 6, paddingVertical: 6, paddingHorizontal: 10, borderWidth: 1, borderColor: couleurs.brique },
+  texteBoutonAnnulerPetit: { color: couleurs.brique, fontSize: 11, fontWeight: '600' },
 });

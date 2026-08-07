@@ -40,7 +40,8 @@ CREATE TABLE canton (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   nom VARCHAR(100) UNIQUE NOT NULL,
   latitude DECIMAL(10,7) NULL,
-  longitude DECIMAL(10,7) NULL
+  longitude DECIMAL(10,7) NULL,
+  actif BOOLEAN NOT NULL DEFAULT TRUE -- module Paramétrage : désactiver plutôt que supprimer, un canton déjà référencé ne doit jamais être supprimé
 );
 
 -- ---------------------------------------------------------------------
@@ -255,6 +256,7 @@ CREATE TABLE remboursement_beneficiaire (
   montant DECIMAL(15,2) NOT NULL,
   date_versement DATE NOT NULL,
   observation TEXT NULL,
+  statut VARCHAR(20) NOT NULL DEFAULT 'EnAttente', -- EnAttente, Confirme, Rejete -- confirmé par le Trésorier lui-même, seul un remboursement Confirme compte dans la situation du bénéficiaire
   CONSTRAINT fk_remb_benef_attribution FOREIGN KEY (attribution_financement_id) REFERENCES attribution_financement(id)
 );
 
@@ -359,6 +361,36 @@ CREATE TABLE demande_beneficiaire_prevu (
   nom_libre VARCHAR(150) NULL,
   CONSTRAINT fk_dbp_demande FOREIGN KEY (demande_financement_id) REFERENCES demande_financement(id),
   CONSTRAINT fk_dbp_beneficiaire FOREIGN KEY (beneficiaire_id) REFERENCES beneficiaire(id)
+);
+
+-- ---------------------------------------------------------------------
+-- GROUPE_MMF et ADHESION_GROUPE (module Groupes MMF)
+-- Un bénéficiaire peut appartenir à plusieurs groupes ; un groupe a un
+-- responsable élu parmi ses propres membres (vérifié applicativement,
+-- pas par contrainte SQL - voir groupe_mmf.service.js). On ne supprime
+-- jamais un groupe ni une adhésion : on désactive (actif = FALSE), pour
+-- ne jamais casser l'historique (cotisations à venir, notamment).
+-- ---------------------------------------------------------------------
+CREATE TABLE groupe_mmf (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  nom VARCHAR(150) NOT NULL,
+  canton_id BIGINT NOT NULL,
+  responsable_beneficiaire_id BIGINT NULL, -- doit être un membre actif du groupe, voir service
+  date_creation DATE NOT NULL,
+  actif BOOLEAN NOT NULL DEFAULT TRUE,
+  CONSTRAINT fk_groupe_canton FOREIGN KEY (canton_id) REFERENCES canton(id),
+  CONSTRAINT fk_groupe_responsable FOREIGN KEY (responsable_beneficiaire_id) REFERENCES beneficiaire(id)
+);
+
+CREATE TABLE adhesion_groupe (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  groupe_mmf_id BIGINT NOT NULL,
+  beneficiaire_id BIGINT NOT NULL,
+  date_adhesion DATE NOT NULL,
+  actif BOOLEAN NOT NULL DEFAULT TRUE, -- FALSE = a quitté le groupe (jamais supprimé, garde l'historique)
+  CONSTRAINT fk_adhesion_groupe FOREIGN KEY (groupe_mmf_id) REFERENCES groupe_mmf(id),
+  CONSTRAINT fk_adhesion_beneficiaire FOREIGN KEY (beneficiaire_id) REFERENCES beneficiaire(id),
+  UNIQUE KEY uniq_adhesion (groupe_mmf_id, beneficiaire_id)
 );
 
 -- =====================================================================

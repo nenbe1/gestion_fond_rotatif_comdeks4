@@ -60,7 +60,12 @@ async function mettreAJourStatutMMF(id, statut) {
   await db.query('UPDATE beneficiaire SET statut_mmf = ? WHERE id = ?', [statut, id]);
 }
 
-/** Pour recalculerStatutMMF : somme attribuée vs somme remboursée par le bénéficiaire. */
+// CORRECTION (double validation des remboursements) : ne compte plus
+// que les remboursements CONFIRMÉS par le Trésorier (statut = 'Confirme')
+// dans total_rembourse — avant, un remboursement juste enregistré
+// (EnAttente, pas encore vérifié) faisait déjà passer le statut MMF du
+// bénéficiaire à "Solde"/"RemboursementEnCours" à tort.
+/** Pour recalculerStatutMMF : somme attribuée vs somme remboursée CONFIRMÉE par le bénéficiaire. */
 async function calculerSituationFinanciere(id) {
   const [rows] = await db.query(
     `SELECT
@@ -70,7 +75,7 @@ async function calculerSituationFinanciere(id) {
          SELECT SUM(rb.montant)
          FROM remboursement_beneficiaire rb
          INNER JOIN attribution_financement af2 ON af2.id = rb.attribution_financement_id
-         WHERE af2.beneficiaire_id = ?
+         WHERE af2.beneficiaire_id = ? AND rb.statut = 'Confirme'
        ), 0) AS total_rembourse
      FROM attribution_financement af
      WHERE af.beneficiaire_id = ?`,

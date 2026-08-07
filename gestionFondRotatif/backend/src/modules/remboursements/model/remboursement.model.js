@@ -5,6 +5,11 @@ class RemboursementBeneficiaire {
     this.montant = row.montant;
     this.dateVersement = row.date_versement;
     this.observation = row.observation;
+    // AJOUT : double validation — 'EnAttente' quand le Trésorier vient
+    // de l'enregistrer, 'Confirme' seulement une fois qu'il confirme
+    // avoir vérifié la somme reçue. Seul un remboursement Confirme
+    // compte dans la situation du bénéficiaire (voir attribution.repository).
+    this.statut = row.statut;
   }
   static fromRow(row) {
     if (!row) return null;

@@ -72,14 +72,22 @@ async function consulterParId(id) {
   return AttributionFinancement.fromRow(row);
 }
 
+// CORRECTION : calcule maintenant le "reste à payer" en tenant compte de
+// la majoration figée par financement (avant : resteAPayer = montantAttribue
+// - rembourse, sans jamais ajouter la majoration — ce qui sous-estimait
+// systématiquement ce que le bénéficiaire devait réellement encore).
 async function calculerResteAPayer(id) {
   const attribution = await consulterParId(id);
   const rembourse = await attributionRepository.sommeRembourseePourAttribution(id);
+  const montantAttribue = Number(attribution.montantAttribue);
+  const montantDu = montantAttribue * (1 + Number(attribution.tauxMajorationApplique) / 100);
   return {
-    montantAttribue: Number(attribution.montantAttribue),
+    montantAttribue,
+    tauxMajorationApplique: Number(attribution.tauxMajorationApplique),
+    montantDu,
     montantRembourse: rembourse,
-    resteAPayer: Number(attribution.montantAttribue) - rembourse,
-    soldee: rembourse >= Number(attribution.montantAttribue),
+    resteAPayer: Math.max(montantDu - rembourse, 0),
+    soldee: rembourse >= montantDu,
   };
 }
 

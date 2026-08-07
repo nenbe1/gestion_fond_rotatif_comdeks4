@@ -115,6 +115,19 @@ async function connecter({ telephone, mot_de_passe }) {
     }
     utilisateur.fonctionCode = membre.fonction_code;
     utilisateur.fonctionLibelle = membre.fonction_libelle;
+
+    // AJOUT : liste des codes d'habilitation de sa fonction (voir
+    // Paramétrage > Fonctions) — permet au Mobile/Web de savoir quels
+    // boutons afficher (ex: "Confirmer" un remboursement) sans coder en
+    // dur quelle fonction y a droit.
+    const [habilitations] = await db.query(
+      `SELECT h.code
+       FROM fonction_habilitation fh
+       INNER JOIN habilitation h ON h.id = fh.habilitation_id
+       WHERE fh.fonction_id = ?`,
+      [membre.fonction_id]
+    );
+    utilisateur.habilitations = habilitations.map((h) => h.code);
   }
 
   return { token, utilisateur };

@@ -4,7 +4,14 @@
  * l'ajout du token JWT et le traitement des erreurs.
  */
 
-const BASE_URL = 'http://localhost:5000/api';
+// CORRECTION : l'adresse du backend s'adapte maintenant automatiquement
+// à la façon dont le site est ouvert, au lieu d'être toujours
+// "localhost" (ce qui ne marchait que depuis le PC lui-même). Si le
+// site est ouvert via http://localhost:5173, le backend est appelé sur
+// localhost:5000 ; si ouvert depuis un téléphone via
+// http://192.168.x.x:5173 (voir vite.config.js), le backend est appelé
+// sur cette même adresse réseau — sans rien à changer manuellement.
+const BASE_URL = `http://${window.location.hostname}:5000/api`;
 
 /**
  * Effectue une requête vers l'API, en ajoutant automatiquement le token
@@ -37,8 +44,5 @@ async function appelerApi(chemin, options = {}) {
   return donnees;
 }
 
-// AJOUT : exporté pour les cas où on a besoin de l'URL brute (ex: télécharger
-// un fichier binaire/texte via fetch direct, comme la sauvegarde SQL dans
-// Administration.jsx, plutôt que le JSON automatique de appelerApi).
 export { BASE_URL };
 export default appelerApi;

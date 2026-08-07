@@ -1,5 +1,9 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView,
+} from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../context/AuthContext';
 import { couleurs } from '../theme/couleurs';
 
@@ -8,6 +12,11 @@ import { couleurs } from '../theme/couleurs';
  * Bénéficiaires (Web = Responsable/Administration/Autorités). Si un
  * autre rôle se connecte ici, on l'informe plutôt que d'afficher un
  * écran vide/cassé.
+ *
+ * CORRECTION (design) : remplace l'ancien titre centré + carte plate par
+ * un bandeau coloré en haut (badge + titre) et une carte qui chevauche
+ * légèrement ce bandeau — plus proche de ce qu'on voit dans les apps
+ * grand public. Champs avec icône, bouton en pilule avec ombre portée.
  */
 export default function ConnexionScreen() {
   const [telephone, setTelephone] = useState('');
@@ -15,6 +24,7 @@ export default function ConnexionScreen() {
   const [motDePasseVisible, setMotDePasseVisible] = useState(false);
   const [envoiEnCours, setEnvoiEnCours] = useState(false);
   const [erreur, setErreur] = useState('');
+  const [champActif, setChampActif] = useState(null); // 'telephone' | 'motDePasse' | null
   const { connecter } = useAuth();
 
   async function gererConnexion() {
@@ -39,69 +49,159 @@ export default function ConnexionScreen() {
       style={styles.conteneur}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <Text style={styles.titre}>Fonds Rotatif MMF</Text>
-      <Text style={styles.sousTitre}>AJEOV Technologies</Text>
-
-      <View style={styles.carte}>
-        <Text style={styles.libelle}>Téléphone</Text>
-        <TextInput
-          style={styles.champ}
-          value={telephone}
-          onChangeText={setTelephone}
-          keyboardType="phone-pad"
-          autoCapitalize="none"
-          placeholder="+237 6xx xxx xxx"
-        />
-
-        <Text style={styles.libelle}>Mot de passe</Text>
-        <View style={styles.champAvecBouton}>
-          <TextInput
-            style={styles.champMotDePasse}
-            value={motDePasse}
-            onChangeText={setMotDePasse}
-            secureTextEntry={!motDePasseVisible}
-            placeholder="••••••••"
-          />
-          <TouchableOpacity
-            style={styles.boutonOeil}
-            onPress={() => setMotDePasseVisible((v) => !v)}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Text style={styles.texteOeil}>{motDePasseVisible ? '🙈' : '👁'}</Text>
-          </TouchableOpacity>
+      <StatusBar style="light" />
+      <ScrollView contentContainerStyle={styles.defilement} keyboardShouldPersistTaps="handled">
+        <View style={styles.bandeau}>
+          <View style={styles.badge}>
+            <Text style={styles.emojiBadge}>🌱</Text>
+          </View>
+          <Text style={styles.titre}>Fonds Rotatif MMF</Text>
+          <Text style={styles.sousTitre}>AJEOV Technologies</Text>
         </View>
 
-        {erreur ? <Text style={styles.erreur}>{erreur}</Text> : null}
+        <View style={styles.carte}>
+          <Text style={styles.libelleCarte}>Connexion</Text>
 
-        <TouchableOpacity
-          style={[styles.bouton, envoiEnCours && styles.boutonDesactive]}
-          onPress={gererConnexion}
-          disabled={envoiEnCours}
-        >
-          {envoiEnCours ? (
-            <ActivityIndicator color={couleurs.blanc} />
-          ) : (
-            <Text style={styles.texteBouton}>Se connecter</Text>
-          )}
-        </TouchableOpacity>
-      </View>
+          <Text style={styles.libelle}>Téléphone</Text>
+          <View style={[styles.champConteneur, champActif === 'telephone' && styles.champConteneurActif]}>
+            <Text style={styles.iconeChamp}>📱</Text>
+            <TextInput
+              style={styles.champ}
+              value={telephone}
+              onChangeText={setTelephone}
+              onFocus={() => setChampActif('telephone')}
+              onBlur={() => setChampActif(null)}
+              keyboardType="phone-pad"
+              autoCapitalize="none"
+              placeholder="+237 6xx xxx xxx"
+              placeholderTextColor="#aaa"
+            />
+          </View>
+
+          <Text style={styles.libelle}>Mot de passe</Text>
+          <View style={[styles.champConteneur, champActif === 'motDePasse' && styles.champConteneurActif]}>
+            <Text style={styles.iconeChamp}>🔒</Text>
+            <TextInput
+              style={styles.champ}
+              value={motDePasse}
+              onChangeText={setMotDePasse}
+              onFocus={() => setChampActif('motDePasse')}
+              onBlur={() => setChampActif(null)}
+              secureTextEntry={!motDePasseVisible}
+              placeholder="••••••••"
+              placeholderTextColor="#aaa"
+            />
+            <TouchableOpacity
+              style={styles.boutonOeil}
+              onPress={() => setMotDePasseVisible((v) => !v)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.texteOeil}>{motDePasseVisible ? '🙈' : '👁'}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {erreur ? (
+            <View style={styles.banniereErreur}>
+              <Text style={styles.texteErreur}>{erreur}</Text>
+            </View>
+          ) : null}
+
+          <TouchableOpacity
+            style={[styles.bouton, envoiEnCours && styles.boutonDesactive]}
+            onPress={gererConnexion}
+            disabled={envoiEnCours}
+            activeOpacity={0.85}
+          >
+            {envoiEnCours ? (
+              <ActivityIndicator color={couleurs.blanc} />
+            ) : (
+              <Text style={styles.texteBouton}>SE CONNECTER</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  conteneur: { flex: 1, backgroundColor: couleurs.creme, justifyContent: 'center', padding: 24 },
-  titre: { fontSize: 26, fontWeight: '700', color: couleurs.vertFonce, textAlign: 'center' },
-  sousTitre: { fontSize: 14, color: '#888', textAlign: 'center', marginBottom: 32 },
-  carte: { backgroundColor: couleurs.blanc, borderRadius: 12, padding: 20, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 6, elevation: 2 },
-  libelle: { fontSize: 13, color: couleurs.grisTexte, marginTop: 12, marginBottom: 4 },
-  champ: { borderWidth: 1, borderColor: couleurs.grisClair, borderRadius: 8, padding: 12, fontSize: 15 },
-  champAvecBouton: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: couleurs.grisClair, borderRadius: 8 },
-  champMotDePasse: { flex: 1, padding: 12, fontSize: 15 },
-  boutonOeil: { paddingHorizontal: 12 },
+  conteneur: { flex: 1, backgroundColor: couleurs.vertFonce },
+  defilement: { flexGrow: 1 },
+
+  bandeau: {
+    backgroundColor: couleurs.vertFonce,
+    alignItems: 'center',
+    paddingTop: 70,
+    paddingBottom: 56,
+    paddingHorizontal: 24,
+  },
+  badge: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: couleurs.blanc,
+    borderWidth: 3,
+    borderColor: couleurs.orMil,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  emojiBadge: { fontSize: 30 },
+  titre: { fontSize: 22, fontWeight: '700', color: couleurs.blanc, textAlign: 'center' },
+  sousTitre: { fontSize: 13, color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginTop: 4 },
+
+  carte: {
+    flex: 1,
+    backgroundColor: couleurs.creme,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    marginTop: -28,
+    padding: 24,
+    paddingTop: 28,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  libelleCarte: { fontSize: 17, fontWeight: '700', color: couleurs.grisTexte, marginBottom: 18 },
+
+  libelle: { fontSize: 12, fontWeight: '600', color: '#888', marginTop: 14, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.3 },
+  champConteneur: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: couleurs.blanc,
+    borderWidth: 1.5,
+    borderColor: couleurs.grisClair,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+  },
+  champConteneurActif: { borderColor: couleurs.vertMoyen },
+  iconeChamp: { fontSize: 16, marginRight: 10 },
+  champ: { flex: 1, paddingVertical: 13, fontSize: 15, color: couleurs.grisTexte },
+  boutonOeil: { paddingLeft: 10, paddingVertical: 6 },
   texteOeil: { fontSize: 18 },
-  erreur: { color: couleurs.brique, marginTop: 12, fontSize: 13 },
-  bouton: { backgroundColor: couleurs.vertFonce, borderRadius: 8, padding: 14, alignItems: 'center', marginTop: 20 },
-  boutonDesactive: { opacity: 0.6 },
-  texteBouton: { color: couleurs.blanc, fontWeight: '600', fontSize: 15 },
+
+  banniereErreur: {
+    backgroundColor: '#fbe9e6',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 16,
+  },
+  texteErreur: { color: couleurs.brique, fontSize: 13 },
+
+  bouton: {
+    backgroundColor: couleurs.vertFonce,
+    borderRadius: 30,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 26,
+    shadowColor: couleurs.vertFonce,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  boutonDesactive: { opacity: 0.6, shadowOpacity: 0 },
+  texteBouton: { color: couleurs.blanc, fontWeight: '700', fontSize: 15, letterSpacing: 0.6 },
 });

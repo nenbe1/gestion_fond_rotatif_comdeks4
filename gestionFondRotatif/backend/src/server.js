@@ -22,7 +22,9 @@ app.use('/api/fond-rotatif', require('./modules/fond_rotatif/routes/fond_rotatif
 app.use('/api/rapports', require('./modules/rapports/routes/rapport.routes'));
 app.use('/api/autorites', require('./modules/autorites/routes/autorite.routes'));
 app.use('/api/parametres', require('./modules/parametrage/routes/parametre.routes'));
+app.use('/api/parametrage', require('./modules/parametrage/routes/parametrage.routes'));
 app.use('/api/administration', require('./modules/administration/routes/administration.routes'));
+app.use('/api/groupes-mmf', require('./modules/groupes_mmf/routes/groupe_mmf.routes'));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'mmf-backend' });

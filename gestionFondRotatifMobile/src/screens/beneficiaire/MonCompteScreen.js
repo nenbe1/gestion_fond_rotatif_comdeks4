@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, StyleSheet, RefreshControl, TouchableOpacity, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import appelerApi from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
@@ -11,6 +11,15 @@ const LIBELLE_STATUT = {
   Solde: 'Soldé',
 };
 
+/**
+ * Mon compte (bénéficiaire) — écran d'accueil.
+ *
+ * CORRECTION (design) : même bandeau coloré que ConnexionScreen et le
+ * tableau de bord du comité (au lieu d'un simple en-tête plat), et le
+ * lien "Déconnexion" devient un bouton icône rond avec confirmation.
+ * Les cartes-statistiques chevauchent légèrement le bandeau, comme la
+ * carte de connexion.
+ */
 export default function MonCompteScreen({ navigation }) {
   const [compte, setCompte] = useState(null);
   const [chargement, setChargement] = useState(true);
@@ -33,8 +42,19 @@ export default function MonCompteScreen({ navigation }) {
   // financement lui ait été attribué entre-temps par la Responsable).
   useFocusEffect(useCallback(() => { charger(); }, [charger]));
 
+  function confirmerDeconnexion() {
+    Alert.alert('Se déconnecter ?', '', [
+      { text: 'Annuler', style: 'cancel' },
+      { text: 'Se déconnecter', style: 'destructive', onPress: deconnecter },
+    ]);
+  }
+
+  // CORRECTION : resteAPayer vient maintenant directement du backend
+  // (calcul exact par financement, avec majoration + double validation
+  // des remboursements confirmés), au lieu d'un calcul approximatif fait
+  // ici qui ignorait la distinction "enregistré" / "confirmé".
   const situation = compte?.situation;
-  const resteDu = situation ? Math.max(situation.totalAttribue * 1.10 - situation.totalRembourse, 0) : 0;
+  const resteDu = situation?.resteAPayer ?? 0;
 
   return (
     <FlatList
@@ -42,41 +62,46 @@ export default function MonCompteScreen({ navigation }) {
       contentContainerStyle={styles.contenu}
       data={compte?.financements ?? []}
       keyExtractor={(item) => String(item.id)}
-      refreshControl={<RefreshControl refreshing={chargement} onRefresh={charger} />}
+      refreshControl={<RefreshControl refreshing={chargement} onRefresh={charger} tintColor={couleurs.vertFonce} />}
       ListHeaderComponent={
         <View>
-          <View style={styles.entete}>
+          <View style={styles.bandeau}>
             <View style={{ flex: 1, marginRight: 10 }}>
-              <Text style={styles.nom}>{utilisateur?.nom} {utilisateur?.prenom}</Text>
+              <Text style={styles.salutation}>Bonjour 👋</Text>
+              <Text style={styles.nom}>{utilisateur?.prenom} {utilisateur?.nom}</Text>
               {compte?.beneficiaire && (
                 <View style={[styles.badge, styleBadge(compte.beneficiaire.statutMMF)]}>
                   <Text style={styles.texteBadge}>{LIBELLE_STATUT[compte.beneficiaire.statutMMF] || compte.beneficiaire.statutMMF}</Text>
                 </View>
               )}
             </View>
-            <TouchableOpacity onPress={deconnecter}><Text style={styles.deconnexion}>Déconnexion</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.boutonDeconnexion} onPress={confirmerDeconnexion} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={styles.iconeDeconnexion}>🚪</Text>
+            </TouchableOpacity>
           </View>
 
-          {erreur ? <Text style={styles.erreur}>{erreur}</Text> : null}
+          <View style={styles.zoneContenu}>
+            {erreur ? <Text style={styles.erreur}>{erreur}</Text> : null}
 
-          {situation && (
-            <View style={styles.grilleCartes}>
-              <View style={styles.carteStat}>
-                <Text style={styles.valeurStat}>{situation.nombreFinancements}</Text>
-                <Text style={styles.libelleStat}>Financements reçus</Text>
+            {situation && (
+              <View style={styles.grilleCartes}>
+                <View style={styles.carteStat}>
+                  <Text style={styles.valeurStat}>{situation.nombreFinancements}</Text>
+                  <Text style={styles.libelleStat}>Financements reçus</Text>
+                </View>
+                <View style={styles.carteStat}>
+                  <Text style={styles.valeurStat}>{situation.totalAttribue.toLocaleString('fr-FR')}</Text>
+                  <Text style={styles.libelleStat}>FCFA reçus au total</Text>
+                </View>
+                <View style={styles.carteStat}>
+                  <Text style={[styles.valeurStat, { color: couleurs.brique }]}>{resteDu.toLocaleString('fr-FR')}</Text>
+                  <Text style={styles.libelleStat}>FCFA restant à rembourser</Text>
+                </View>
               </View>
-              <View style={styles.carteStat}>
-                <Text style={styles.valeurStat}>{situation.totalAttribue.toLocaleString('fr-FR')}</Text>
-                <Text style={styles.libelleStat}>FCFA reçus au total</Text>
-              </View>
-              <View style={styles.carteStat}>
-                <Text style={[styles.valeurStat, { color: couleurs.brique }]}>{resteDu.toLocaleString('fr-FR')}</Text>
-                <Text style={styles.libelleStat}>FCFA restant à rembourser</Text>
-              </View>
-            </View>
-          )}
+            )}
 
-          <Text style={styles.sousTitreListe}>Mes financements</Text>
+            <Text style={styles.sousTitreListe}>Mes financements</Text>
+          </View>
         </View>
       }
       renderItem={({ item }) => (
@@ -87,6 +112,7 @@ export default function MonCompteScreen({ navigation }) {
             montantAttribue: item.montantAttribue,
             codeFinancement: item.codeFinancement,
           })}
+          activeOpacity={0.85}
         >
           <View>
             <Text style={styles.codeFinancement}>{item.codeFinancement}</Text>
@@ -94,7 +120,12 @@ export default function MonCompteScreen({ navigation }) {
               {new Date(item.dateAttribution).toLocaleDateString('fr-FR')}
             </Text>
           </View>
-          <Text style={styles.montantFinancement}>{item.montantAttribue.toLocaleString('fr-FR')} FCFA</Text>
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={styles.montantFinancement}>{item.montantAttribue.toLocaleString('fr-FR')} FCFA</Text>
+            <Text style={item.soldee ? styles.etiquetteSoldee : styles.etiquetteEnCours}>
+              {item.soldee ? 'Soldé' : `Reste ${item.resteAPayer.toLocaleString('fr-FR')} FCFA`}
+            </Text>
+          </View>
         </TouchableOpacity>
       )}
       ListEmptyComponent={!chargement ? <Text style={styles.vide}>Aucun financement reçu pour l'instant.</Text> : null}
@@ -110,21 +141,52 @@ function styleBadge(statut) {
 
 const styles = StyleSheet.create({
   conteneur: { flex: 1, backgroundColor: couleurs.creme },
-  contenu: { padding: 20 },
-  entete: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
-  nom: { flexShrink: 1, fontSize: 20, fontWeight: '700', color: couleurs.vertFonce, marginRight: 10 },
-  badge: { alignSelf: 'flex-start', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3, marginTop: 6 },
+  contenu: { paddingBottom: 20 },
+
+  bandeau: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: couleurs.vertFonce,
+    paddingTop: 56,
+    paddingBottom: 40,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  salutation: { color: 'rgba(255,255,255,0.7)', fontSize: 13 },
+  nom: { flexShrink: 1, fontSize: 19, fontWeight: '700', color: couleurs.blanc, marginTop: 2 },
+  boutonDeconnexion: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  iconeDeconnexion: { color: couleurs.blanc, fontSize: 17 },
+
+  badge: { alignSelf: 'flex-start', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3, marginTop: 8 },
   texteBadge: { fontSize: 12, color: couleurs.grisTexte },
-  deconnexion: { color: couleurs.brique, fontSize: 13 },
+
+  zoneContenu: { paddingHorizontal: 20, marginTop: -22 },
   erreur: { color: couleurs.brique, marginBottom: 12 },
-  grilleCartes: { flexDirection: 'row', gap: 10, marginBottom: 20 },
-  carteStat: { flex: 1, backgroundColor: couleurs.blanc, borderRadius: 10, padding: 12, alignItems: 'center' },
+
+  grilleCartes: { flexDirection: 'row', gap: 10, marginBottom: 22 },
+  carteStat: {
+    flex: 1, backgroundColor: couleurs.blanc, borderRadius: 14, padding: 12, alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 6, elevation: 2,
+  },
   valeurStat: { fontSize: 16, fontWeight: '700', color: couleurs.vertFonce, textAlign: 'center' },
   libelleStat: { fontSize: 11, color: '#888', textAlign: 'center', marginTop: 4 },
-  sousTitreListe: { fontSize: 15, fontWeight: '600', color: couleurs.grisTexte, marginBottom: 8 },
-  ligneFinancement: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: couleurs.blanc, borderRadius: 8, padding: 14, marginBottom: 8 },
+
+  sousTitreListe: { fontSize: 13, fontWeight: '700', color: '#888', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 10 },
+  ligneFinancement: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    backgroundColor: couleurs.blanc, borderRadius: 14, padding: 14,
+    marginHorizontal: 20, marginBottom: 8,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
+  },
   codeFinancement: { fontWeight: '600', color: couleurs.grisTexte },
   dateFinancement: { fontSize: 12, color: '#888', marginTop: 2 },
   montantFinancement: { fontWeight: '700', color: couleurs.vertMoyen },
-  vide: { textAlign: 'center', color: '#888', marginTop: 20 },
+  etiquetteSoldee: { fontSize: 10, color: couleurs.vertMoyen, marginTop: 2, fontWeight: '600' },
+  etiquetteEnCours: { fontSize: 10, color: couleurs.brique, marginTop: 2, fontWeight: '600' },
+  vide: { textAlign: 'center', color: '#888', marginTop: 20, paddingHorizontal: 20 },
 });

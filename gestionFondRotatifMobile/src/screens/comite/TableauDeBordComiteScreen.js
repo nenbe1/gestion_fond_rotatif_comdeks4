@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import appelerApi from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
@@ -19,6 +19,15 @@ const COULEUR_STATUT = {
   Rejetee: couleurs.brique,
 };
 
+/**
+ * Tableau de bord du comité (= liste des demandes de mon canton, avec
+ * les raccourcis vers les autres écrans).
+ *
+ * CORRECTION (design) : même bandeau coloré que ConnexionScreen (au lieu
+ * d'un simple fond crème avec un en-tête plat), et le lien "Déconnexion"
+ * devient un bouton icône rond avec confirmation avant de se déconnecter
+ * (évite un clic accidentel qui coupait la session sans prévenir).
+ */
 export default function TableauDeBordComiteScreen({ navigation }) {
   const [demandes, setDemandes] = useState([]);
   const [chargement, setChargement] = useState(true);
@@ -39,28 +48,49 @@ export default function TableauDeBordComiteScreen({ navigation }) {
 
   useFocusEffect(useCallback(() => { charger(); }, [charger]));
 
+  function confirmerDeconnexion() {
+    Alert.alert('Se déconnecter ?', '', [
+      { text: 'Annuler', style: 'cancel' },
+      { text: 'Se déconnecter', style: 'destructive', onPress: deconnecter },
+    ]);
+  }
+
   return (
     <FlatList
       style={styles.conteneur}
       contentContainerStyle={styles.contenu}
       data={demandes}
       keyExtractor={(item) => String(item.id)}
-      refreshControl={<RefreshControl refreshing={chargement} onRefresh={charger} />}
+      refreshControl={<RefreshControl refreshing={chargement} onRefresh={charger} tintColor={couleurs.vertFonce} />}
       ListHeaderComponent={
         <View>
-          <View style={styles.entete}>
-            <Text style={styles.titre} numberOfLines={1} adjustsFontSizeToFit>Demandes</Text>
-            <TouchableOpacity onPress={deconnecter}><Text style={styles.deconnexion}>Déconnexion</Text></TouchableOpacity>
+          <View style={styles.bandeau}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.salutation}>Bonjour 👋</Text>
+              <Text style={styles.nom} numberOfLines={1} adjustsFontSizeToFit>{utilisateur?.prenom} {utilisateur?.nom}</Text>
+            </View>
+            <TouchableOpacity style={styles.boutonDeconnexion} onPress={confirmerDeconnexion} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={styles.iconeDeconnexion}>🚪</Text>
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity style={styles.boutonNouvelleDemande} onPress={() => navigation.navigate('CreerDemande')}>
-            <Text style={styles.texteBoutonNouvelleDemande}>+ Nouvelle demande de financement</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.lienRemboursements} onPress={() => navigation.navigate('ListeFinancements')}>
-            <Text style={styles.texteLienRemboursements}>Financements : répartition & remboursements →</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.lienRemboursements} onPress={() => navigation.navigate('ListeBeneficiaires')}>
-            <Text style={styles.texteLienRemboursements}>Bénéficiaires de mon canton →</Text>
-          </TouchableOpacity>
+
+          <View style={styles.zoneActions}>
+            <Text style={styles.titreSection}>Demandes de mon canton</Text>
+
+            <TouchableOpacity style={styles.boutonPrincipal} onPress={() => navigation.navigate('CreerDemande')} activeOpacity={0.85}>
+              <Text style={styles.texteBoutonPrincipal}>+  Nouvelle demande de financement</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.lienCarte} onPress={() => navigation.navigate('ListeFinancements')} activeOpacity={0.7}>
+              <Text style={styles.iconeLien}>💰</Text>
+              <Text style={styles.texteLienCarte}>Financements : répartition & remboursements</Text>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.lienCarte} onPress={() => navigation.navigate('ListeBeneficiaires')} activeOpacity={0.7}>
+              <Text style={styles.iconeLien}>👥</Text>
+              <Text style={styles.texteLienCarte}>Bénéficiaires de mon canton</Text>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       }
       ListEmptyComponent={!chargement ? (
@@ -70,6 +100,7 @@ export default function TableauDeBordComiteScreen({ navigation }) {
         <TouchableOpacity
           style={styles.carte}
           onPress={() => navigation.navigate('DetailDemande', { demandeId: item.id })}
+          activeOpacity={0.85}
         >
           <View style={{ flex: 1 }}>
             <Text style={styles.code}>{item.codeDemande}</Text>
@@ -87,16 +118,61 @@ export default function TableauDeBordComiteScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   conteneur: { flex: 1, backgroundColor: couleurs.creme },
-  contenu: { padding: 20 },
-  entete: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  lienRemboursements: { backgroundColor: couleurs.blanc, borderRadius: 8, padding: 12, marginBottom: 16 },
-  boutonNouvelleDemande: { backgroundColor: couleurs.vertFonce, borderRadius: 8, padding: 12, marginBottom: 10 },
-  texteBoutonNouvelleDemande: { color: couleurs.blanc, fontWeight: '600', fontSize: 13, textAlign: 'center' },
-  texteLienRemboursements: { color: couleurs.vertFonce, fontWeight: '600', fontSize: 13 },
-  titre: { flex: 1, fontSize: 20, fontWeight: '700', color: couleurs.vertFonce, marginRight: 10 },
-  deconnexion: { color: couleurs.brique, fontSize: 13, flexShrink: 0 },
-  vide: { textAlign: 'center', color: '#888', marginTop: 20 },
-  carte: { flexDirection: 'row', backgroundColor: couleurs.blanc, borderRadius: 10, padding: 14, marginBottom: 10, alignItems: 'center' },
+  contenu: { paddingBottom: 20 },
+
+  bandeau: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: couleurs.vertFonce,
+    paddingTop: 56,
+    paddingBottom: 26,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    marginBottom: 18,
+  },
+  salutation: { color: 'rgba(255,255,255,0.7)', fontSize: 13 },
+  nom: { color: couleurs.blanc, fontSize: 19, fontWeight: '700', marginTop: 2 },
+  boutonDeconnexion: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  iconeDeconnexion: { color: couleurs.blanc, fontSize: 17 },
+
+  zoneActions: { paddingHorizontal: 20 },
+  titreSection: { fontSize: 13, fontWeight: '700', color: '#888', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 10 },
+
+  boutonPrincipal: {
+    backgroundColor: couleurs.vertFonce,
+    borderRadius: 14,
+    paddingVertical: 15,
+    marginBottom: 10,
+    shadowColor: couleurs.vertFonce,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  texteBoutonPrincipal: { color: couleurs.blanc, fontWeight: '700', fontSize: 14, textAlign: 'center' },
+
+  lienCarte: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: couleurs.blanc, borderRadius: 14, padding: 14, marginBottom: 10,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
+  },
+  iconeLien: { fontSize: 18, marginRight: 10 },
+  texteLienCarte: { flex: 1, color: couleurs.vertFonce, fontWeight: '600', fontSize: 13 },
+  chevron: { color: '#bbb', fontSize: 20, marginLeft: 6 },
+
+  vide: { textAlign: 'center', color: '#888', marginTop: 20, paddingHorizontal: 20 },
+
+  carte: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: couleurs.blanc, borderRadius: 14, padding: 14,
+    marginHorizontal: 20, marginBottom: 10,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
+  },
   code: { fontWeight: '700', color: couleurs.grisTexte },
   objet: { fontSize: 13, color: '#555', marginTop: 2, marginBottom: 4 },
   montant: { fontWeight: '600', color: couleurs.vertMoyen },

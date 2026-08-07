@@ -15,13 +15,26 @@ async function findIndividuelByAttributionId(attributionId) {
   return rows;
 }
 
+// CORRECTION : le remboursement démarre maintenant toujours au statut
+// 'EnAttente' — c'est confirmerIndividuel (voir plus bas) qui le fait
+// passer à 'Confirme', jamais la création elle-même. Double validation :
+// le Trésorier enregistre ce qu'il a reçu, puis confirme dans un second
+// temps après vérification.
 async function createIndividuel({ attribution_financement_id, montant, date_versement, observation }) {
   const [result] = await db.query(
-    `INSERT INTO remboursement_beneficiaire (attribution_financement_id, montant, date_versement, observation)
-     VALUES (?, ?, ?, ?)`,
+    `INSERT INTO remboursement_beneficiaire (attribution_financement_id, montant, date_versement, observation, statut)
+     VALUES (?, ?, ?, ?, 'EnAttente')`,
     [attribution_financement_id, montant, date_versement, observation || null]
   );
   return findIndividuelById(result.insertId);
+}
+
+// AJOUT : fait passer un remboursement individuel de 'EnAttente' à
+// 'Confirme' (ou 'Rejete' si le Trésorier se rend compte d'une erreur
+// de saisie avant confirmation).
+async function majStatutIndividuel(id, statut) {
+  await db.query('UPDATE remboursement_beneficiaire SET statut = ? WHERE id = ?', [statut, id]);
+  return findIndividuelById(id);
 }
 
 // ---------- Remboursement collectif (RemboursementCollectif) ----------
@@ -74,7 +87,7 @@ async function confirmerPaiementCollectif(connection, id, montantVerse, fondRota
 }
 
 module.exports = {
-  findIndividuelById, findIndividuelByAttributionId, createIndividuel,
+  findIndividuelById, findIndividuelByAttributionId, createIndividuel, majStatutIndividuel,
   findCollectifById, findCollectifByFinancementId, createCollectif,
   majStatutCollectif, confirmerPaiementCollectif,
 };
