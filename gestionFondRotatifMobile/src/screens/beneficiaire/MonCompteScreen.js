@@ -57,6 +57,7 @@ export default function MonCompteScreen({ navigation }) {
   const resteDu = situation?.resteAPayer ?? 0;
 
   return (
+    <View style={{ flex: 1 }}>
     <FlatList
       style={styles.conteneur}
       contentContainerStyle={styles.contenu}
@@ -130,6 +131,15 @@ export default function MonCompteScreen({ navigation }) {
       )}
       ListEmptyComponent={!chargement ? <Text style={styles.vide}>Aucun financement reçu pour l'instant.</Text> : null}
     />
+
+      <TouchableOpacity
+        style={styles.fabConseillerIA}
+        onPress={() => navigation.navigate('ConseillerIA')}
+        activeOpacity={0.88}
+      >
+        <Text style={styles.fabIcone}>🤖</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -189,4 +199,13 @@ const styles = StyleSheet.create({
   etiquetteSoldee: { fontSize: 10, color: couleurs.vertMoyen, marginTop: 2, fontWeight: '600' },
   etiquetteEnCours: { fontSize: 10, color: couleurs.brique, marginTop: 2, fontWeight: '600' },
   vide: { textAlign: 'center', color: '#888', marginTop: 20, paddingHorizontal: 20 },
+
+  fabConseillerIA: {
+    position: 'absolute', right: 20, bottom: 24,
+    width: 56, height: 56, borderRadius: 28,
+    backgroundColor: couleurs.vertFonce,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 5,
+  },
+  fabIcone: { fontSize: 24 },
 });

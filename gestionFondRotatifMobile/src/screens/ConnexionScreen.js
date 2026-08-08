@@ -56,7 +56,7 @@ export default function ConnexionScreen() {
             <Text style={styles.emojiBadge}>🌱</Text>
           </View>
           <Text style={styles.titre}>Fonds Rotatif MMF</Text>
-          <Text style={styles.sousTitre}>AJEOV Technologies</Text>
+          <Text style={styles.sousTitre}>COMDEKS4--AJEOV Technologies</Text>
         </View>
 
         <View style={styles.carte}>

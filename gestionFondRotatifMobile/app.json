@@ -10,7 +10,8 @@
       "backgroundColor": "#faf8f3"
     },
     "android": {
-      "package": "com.ajeov.fondrotatifmmf"
+      "package": "com.ajeov.fondrotatifmmf",
+      "softwareKeyboardLayoutMode": "resize"
     },
     "ios": {
       "bundleIdentifier": "com.ajeov.fondrotatifmmf",

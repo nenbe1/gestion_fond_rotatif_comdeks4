@@ -31,30 +31,37 @@ export default function Connexion() {
 
   return (
     <div className="page-connexion">
-      <div className="carte-connexion">
-        <h1>Gestion Fonds Rotatif</h1>
-        <p className="sous-titre">COMDEKS4 — AJEOV Technologies</p>
+      <div className="bandeau-connexion">
+        <div className="badge-connexion">🌱</div>
+        <h1 className="titre-connexion">Gestion Fonds Rotatif</h1>
+        <p className="sous-titre-connexion">COMDEKS4 — AJEOV Technologies</p>
+      </div>
 
+      <div className="carte-connexion">
         <form onSubmit={gererSoumission}>
           <label>
             Téléphone
-            <input
-              type="text"
-              value={telephone}
-              onChange={(e) => setTelephone(e.target.value)}
-              placeholder="Ex: 690000000"
-              required
-            />
+            <div className="champ-conteneur">
+              <span className="icone-champ">📱</span>
+              <input
+                type="text"
+                value={telephone}
+                onChange={(e) => setTelephone(e.target.value)}
+                placeholder="Ex: 690000000"
+                required
+              />
+            </div>
           </label>
 
           <label>
             Mot de passe
-            <div className="champ-mot-de-passe">
+            <div className="champ-conteneur champ-mot-de-passe">
+              <span className="icone-champ">🔒</span>
               <input
                 type={motDePasseVisible ? 'text' : 'password'}
                 value={motDePasse}
                 onChange={(e) => setMotDePasse(e.target.value)}
-                 placeholder=" Entrez votre mot de passe"
+                placeholder=" Entrez votre mot de passe"
                 required
               />
               <button
@@ -71,7 +78,7 @@ export default function Connexion() {
 
           {erreur && <p className="message-erreur">{erreur}</p>}
 
-          <button type="submit" disabled={chargement}>
+          <button type="submit" className="bouton-connexion" disabled={chargement}>
             {chargement ? 'Connexion...' : 'Se connecter'}
           </button>
         </form>

@@ -15,6 +15,7 @@ import DetailFinancementRemboursementsScreen from '../screens/comite/DetailFinan
 import DetailCircuitRemboursementCollectifScreen from '../screens/comite/DetailCircuitRemboursementCollectifScreen';
 import MonCompteScreen from '../screens/beneficiaire/MonCompteScreen';
 import DetailFinancementScreen from '../screens/beneficiaire/DetailFinancementScreen';
+import ConseillerIAScreen from '../screens/beneficiaire/ConseillerIAScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -40,6 +41,7 @@ function PileBeneficiaire() {
     <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: couleurs.vertFonce }, headerTintColor: couleurs.blanc }}>
       <Stack.Screen name="MonCompte" component={MonCompteScreen} options={{ title: 'Mon compte' }} />
       <Stack.Screen name="DetailFinancement" component={DetailFinancementScreen} options={{ title: 'Détail du financement' }} />
+      <Stack.Screen name="ConseillerIA" component={ConseillerIAScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }

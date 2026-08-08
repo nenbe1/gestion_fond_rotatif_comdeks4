@@ -91,40 +91,121 @@ label {
 }
 
 /* ============================================================
-   Connexion
+   Connexion — même design que l'écran de connexion Mobile
+   (bandeau + badge rond, carte qui chevauche, champs à icône,
+   bouton en pilule avec ombre portée).
    ============================================================ */
 .page-connexion {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   background: linear-gradient(160deg, var(--vert-fonce), #1b3327);
+  padding: 40px 20px;
 }
-.carte-connexion {
-  background: white;
-  padding: 2.5rem;
-  border-radius: 12px;
-  box-shadow: var(--ombre);
-  width: 340px;
-}
-.carte-connexion h1 { font-size: 1.3rem; margin-bottom: 0.2rem; }
-.sous-titre { color: #888; font-size: 0.85rem; margin-bottom: 1.5rem; }
-.carte-connexion form { display: flex; flex-direction: column; gap: 1rem; }
-.carte-connexion button { margin-top: 0.5rem; }
 
-.champ-mot-de-passe { position: relative; display: flex; align-items: center; }
-.champ-mot-de-passe input { padding-right: 2.4rem; }
+.bandeau-connexion {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: -28px; /* la carte chevauche le bas du bandeau */
+  z-index: 1;
+  position: relative;
+}
+.badge-connexion {
+  width: 68px;
+  height: 68px;
+  border-radius: 34px;
+  background: var(--blanc);
+  border: 3px solid var(--or-mil);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.9rem;
+  margin-bottom: 14px;
+}
+.titre-connexion { color: var(--blanc); font-size: 1.35rem; font-weight: 700; text-align: center; margin: 0; }
+.sous-titre-connexion { color: rgba(255,255,255,0.7); font-size: 0.85rem; text-align: center; margin: 4px 0 0; }
+.sous-titre { color: #888; font-size: 0.85rem; }
+
+.carte-connexion {
+  background: var(--creme);
+  padding: 2.3rem 2rem 2rem;
+  border-radius: 24px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.2);
+  width: 360px;
+  max-width: 100%;
+  z-index: 2;
+  position: relative;
+}
+.carte-connexion form { display: flex; flex-direction: column; gap: 1.1rem; }
+.carte-connexion label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.champ-conteneur {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--blanc);
+  border: 1.5px solid var(--gris-clair);
+  border-radius: 14px;
+  padding: 0 0.9rem;
+  transition: border-color 0.15s ease;
+}
+.champ-conteneur:focus-within { border-color: var(--vert-moyen); }
+.icone-champ { font-size: 1rem; margin-right: 0.6rem; flex-shrink: 0; }
+.champ-conteneur input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 0.85rem 0;
+  font-size: 0.95rem;
+  color: var(--gris-texte);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.champ-conteneur input:focus { outline: none; }
+
+.champ-mot-de-passe input { padding-right: 2.2rem; }
 .bouton-oeil {
   position: absolute;
-  right: 0.4rem;
+  right: 0.7rem;
   background: transparent;
   border: none;
   padding: 0.3rem;
   font-size: 1rem;
   line-height: 1;
   color: var(--vert-fonce);
+  cursor: pointer;
 }
 .bouton-oeil:hover { opacity: 0.7; }
+
+.bouton-connexion {
+  background: var(--vert-fonce);
+  color: var(--blanc);
+  border: none;
+  border-radius: 30px;
+  padding: 0.95rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin-top: 0.6rem;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(44,74,58,0.35);
+  transition: opacity 0.15s ease;
+}
+.bouton-connexion:hover:not(:disabled) { opacity: 0.92; }
+.bouton-connexion:disabled { opacity: 0.6; box-shadow: none; cursor: default; }
 
 /* ============================================================
    Mise en page générale
