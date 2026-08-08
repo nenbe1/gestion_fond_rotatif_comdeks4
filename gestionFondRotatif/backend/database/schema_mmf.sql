@@ -364,33 +364,16 @@ CREATE TABLE demande_beneficiaire_prevu (
 );
 
 -- ---------------------------------------------------------------------
--- GROUPE_MMF et ADHESION_GROUPE (module Groupes MMF)
--- Un bénéficiaire peut appartenir à plusieurs groupes ; un groupe a un
--- responsable élu parmi ses propres membres (vérifié applicativement,
--- pas par contrainte SQL - voir groupe_mmf.service.js). On ne supprime
--- jamais un groupe ni une adhésion : on désactive (actif = FALSE), pour
--- ne jamais casser l'historique (cotisations à venir, notamment).
+-- 13. CONSEILLER_IA_HISTORIQUE — historique des échanges question/réponse
+-- entre un bénéficiaire (Mobile) et le Conseiller Financier IA (Gemini).
 -- ---------------------------------------------------------------------
-CREATE TABLE groupe_mmf (
+CREATE TABLE conseiller_ia_historique (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  nom VARCHAR(150) NOT NULL,
-  canton_id BIGINT NOT NULL,
-  responsable_beneficiaire_id BIGINT NULL, -- doit être un membre actif du groupe, voir service
-  date_creation DATE NOT NULL,
-  actif BOOLEAN NOT NULL DEFAULT TRUE,
-  CONSTRAINT fk_groupe_canton FOREIGN KEY (canton_id) REFERENCES canton(id),
-  CONSTRAINT fk_groupe_responsable FOREIGN KEY (responsable_beneficiaire_id) REFERENCES beneficiaire(id)
-);
-
-CREATE TABLE adhesion_groupe (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  groupe_mmf_id BIGINT NOT NULL,
   beneficiaire_id BIGINT NOT NULL,
-  date_adhesion DATE NOT NULL,
-  actif BOOLEAN NOT NULL DEFAULT TRUE, -- FALSE = a quitté le groupe (jamais supprimé, garde l'historique)
-  CONSTRAINT fk_adhesion_groupe FOREIGN KEY (groupe_mmf_id) REFERENCES groupe_mmf(id),
-  CONSTRAINT fk_adhesion_beneficiaire FOREIGN KEY (beneficiaire_id) REFERENCES beneficiaire(id),
-  UNIQUE KEY uniq_adhesion (groupe_mmf_id, beneficiaire_id)
+  question TEXT NOT NULL,
+  reponse TEXT NOT NULL,
+  date_creation TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_conseiller_ia_beneficiaire FOREIGN KEY (beneficiaire_id) REFERENCES beneficiaire(id)
 );
 
 -- =====================================================================
