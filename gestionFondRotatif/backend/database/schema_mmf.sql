@@ -364,16 +364,72 @@ CREATE TABLE demande_beneficiaire_prevu (
 );
 
 -- ---------------------------------------------------------------------
--- 13. CONSEILLER_IA_HISTORIQUE — historique des échanges question/réponse
--- entre un bénéficiaire (Mobile) et le Conseiller Financier IA (Gemini).
+-- GROUPE_MMF et ADHESION_GROUPE (module Groupes MMF)
+-- Un bénéficiaire peut appartenir à plusieurs groupes ; un groupe a un
+-- responsable élu parmi ses propres membres (vérifié applicativement,
+-- pas par contrainte SQL - voir groupe_mmf.service.js). On ne supprime
+-- jamais un groupe ni une adhésion : on désactive (actif = FALSE), pour
+-- ne jamais casser l'historique (cotisations à venir, notamment).
 -- ---------------------------------------------------------------------
-CREATE TABLE conseiller_ia_historique (
+CREATE TABLE groupe_mmf (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  nom VARCHAR(150) NOT NULL,
+  canton_id BIGINT NOT NULL,
+  responsable_beneficiaire_id BIGINT NULL, -- doit être un membre actif du groupe, voir service
+  date_creation DATE NOT NULL,
+  actif BOOLEAN NOT NULL DEFAULT TRUE,
+  CONSTRAINT fk_groupe_canton FOREIGN KEY (canton_id) REFERENCES canton(id),
+  CONSTRAINT fk_groupe_responsable FOREIGN KEY (responsable_beneficiaire_id) REFERENCES beneficiaire(id)
+);
+
+CREATE TABLE adhesion_groupe (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  groupe_mmf_id BIGINT NOT NULL,
   beneficiaire_id BIGINT NOT NULL,
-  question TEXT NOT NULL,
-  reponse TEXT NOT NULL,
-  date_creation TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_conseiller_ia_beneficiaire FOREIGN KEY (beneficiaire_id) REFERENCES beneficiaire(id)
+  date_adhesion DATE NOT NULL,
+  actif BOOLEAN NOT NULL DEFAULT TRUE, -- FALSE = a quitté le groupe (jamais supprimé, garde l'historique)
+  CONSTRAINT fk_adhesion_groupe FOREIGN KEY (groupe_mmf_id) REFERENCES groupe_mmf(id),
+  CONSTRAINT fk_adhesion_beneficiaire FOREIGN KEY (beneficiaire_id) REFERENCES beneficiaire(id),
+  UNIQUE KEY uniq_adhesion (groupe_mmf_id, beneficiaire_id)
+);
+
+-- ---------------------------------------------------------------------
+-- COTISATION (module Cotisations)
+-- Versée individuellement par un bénéficiaire, à la fréquence qu'il
+-- veut (pas de périodicité imposée). Toujours rattachée à un de ses
+-- groupes MMF (vérifié applicativement : doit être membre actif du
+-- groupe au moment du versement, voir cotisation.service.js).
+-- ---------------------------------------------------------------------
+CREATE TABLE cotisation (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  code_cotisation VARCHAR(50) UNIQUE NOT NULL,
+  groupe_mmf_id BIGINT NOT NULL,
+  beneficiaire_id BIGINT NOT NULL,
+  montant DECIMAL(15,2) NOT NULL,
+  date_versement DATE NOT NULL,
+  observation TEXT NULL,
+  CONSTRAINT fk_cotisation_groupe FOREIGN KEY (groupe_mmf_id) REFERENCES groupe_mmf(id),
+  CONSTRAINT fk_cotisation_beneficiaire FOREIGN KEY (beneficiaire_id) REFERENCES beneficiaire(id)
+);
+
+-- ---------------------------------------------------------------------
+-- COTISATION (module Cotisations)
+-- Versée individuellement par un bénéficiaire, à volonté (pas de
+-- périodicité imposée), enregistrée par le membre du comité qui la
+-- reçoit. code_cotisation sert de numéro de référence sur le reçu PDF.
+-- ---------------------------------------------------------------------
+CREATE TABLE cotisation (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  code_cotisation VARCHAR(50) UNIQUE NOT NULL,
+  groupe_mmf_id BIGINT NOT NULL,
+  beneficiaire_id BIGINT NOT NULL,
+  montant DECIMAL(15,2) NOT NULL,
+  date_versement DATE NOT NULL,
+  observation TEXT NULL,
+  enregistre_par BIGINT NOT NULL,
+  CONSTRAINT fk_cotisation_groupe FOREIGN KEY (groupe_mmf_id) REFERENCES groupe_mmf(id),
+  CONSTRAINT fk_cotisation_beneficiaire FOREIGN KEY (beneficiaire_id) REFERENCES beneficiaire(id),
+  CONSTRAINT fk_cotisation_membre FOREIGN KEY (enregistre_par) REFERENCES membre_comite(id)
 );
 
 -- =====================================================================

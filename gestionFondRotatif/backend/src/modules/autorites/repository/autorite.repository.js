@@ -98,6 +98,11 @@ async function calculerStatistiques({ typeCritere, domaineId, valeurCritere }) {
 // (espaces superflus retirés, casse ignorée via LOWER), tout en
 // affichant une orthographe représentative du groupe (MIN, arbitraire
 // mais stable) plutôt que le texte brut exact de chaque ligne.
+// CORRECTION 2 : même souci avec le singulier/pluriel ("agricultrice"
+// vs "agricultrices") — toujours la même personne/activité, mais un 's'
+// final suffisait à créer un deuxième groupe. On l'ignore aussi
+// maintenant dans la clé de regroupement (uniquement pour grouper : le
+// texte affiché reste tel quel, choisi arbitrairement via MIN).
 async function calculerRepartition({ typeCritere, domaineId, valeurCritere }) {
   const { condition, params } = construireConditionCritere({ typeCritere, domaineId, valeurCritere });
 
@@ -114,7 +119,7 @@ async function calculerRepartition({ typeCritere, domaineId, valeurCritere }) {
      INNER JOIN demande_financement dem ON dem.id = f.demande_financement_id
      LEFT JOIN canton c ON c.id = b.canton_id
      WHERE ${condition}
-     GROUP BY c.nom, LOWER(TRIM(b.activite))
+     GROUP BY c.nom, TRIM(TRAILING 's' FROM LOWER(TRIM(b.activite)))
      ORDER BY c.nom ASC, activite ASC`,
     params
   );

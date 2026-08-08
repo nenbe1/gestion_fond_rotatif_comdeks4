@@ -109,7 +109,7 @@ label {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: -28px; /* la carte chevauche le bas du bandeau */
+  padding-bottom: 50px; /* espace sous le sous-titre, avant tout chevauchement */
   z-index: 1;
   position: relative;
 }
@@ -138,6 +138,7 @@ label {
   max-width: 100%;
   z-index: 2;
   position: relative;
+  margin-top: -30px; /* chevauche seulement 30px des 50px de padding du bandeau : 20px de marge de sécurité au-dessus du sous-titre */
 }
 .carte-connexion form { display: flex; flex-direction: column; gap: 1.1rem; }
 .carte-connexion label {
