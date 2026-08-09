@@ -44,4 +44,5 @@ async function appelerApi(chemin, options = {}) {
   return donnees;
 }
 
+export { BASE_URL };
 export default appelerApi;

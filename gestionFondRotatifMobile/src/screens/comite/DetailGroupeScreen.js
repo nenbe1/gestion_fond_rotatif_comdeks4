@@ -1,7 +1,10 @@
 import { useCallback, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, ScrollView, TextInput, StyleSheet, RefreshControl, Alert, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import appelerApi from '../../api/client';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import appelerApi, { BASE_URL } from '../../api/client';
 import { couleurs } from '../../theme/couleurs';
 
 /**
@@ -13,8 +16,10 @@ export default function DetailGroupeScreen({ route, navigation }) {
   const { groupeId } = route.params;
   const [groupe, setGroupe] = useState(null);
   const [membres, setMembres] = useState([]);
+  const [cotisations, setCotisations] = useState([]);
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState('');
+  const [recuEnCours, setRecuEnCours] = useState(null); // id de la cotisation dont le reçu se télécharge
 
   const [afficherAjout, setAfficherAjout] = useState(false);
   const [beneficiairesDisponibles, setBeneficiairesDisponibles] = useState([]);
@@ -27,12 +32,14 @@ export default function DetailGroupeScreen({ route, navigation }) {
 
   const charger = useCallback(async () => {
     try {
-      const [g, m] = await Promise.all([
+      const [g, m, c] = await Promise.all([
         appelerApi(`/groupes-mmf/${groupeId}`),
         appelerApi(`/groupes-mmf/${groupeId}/membres`),
+        appelerApi(`/cotisations?groupe_id=${groupeId}`),
       ]);
       setGroupe(g.groupe);
       setMembres(m.membres);
+      setCotisations(c.cotisations);
       navigation.setOptions({ title: g.groupe.nom });
       setErreur('');
     } catch (err) {
@@ -157,10 +164,47 @@ export default function DetailGroupeScreen({ route, navigation }) {
       });
       setAfficherCotisation(false);
       Alert.alert('Cotisation enregistrée', `Reçu : ${donnees.cotisation.codeCotisation}`);
+      await charger();
     } catch (err) {
       Alert.alert('Erreur', err.message);
     } finally {
       setEnvoiEnCours(null);
+    }
+  }
+
+  /**
+   * Télécharge le reçu PDF (route protégée par token) puis propose de le
+   * partager/ouvrir — le téléchargement doit passer par expo-file-system
+   * (avec l'en-tête Authorization) car un simple lien ouvert dans le
+   * navigateur n'aurait pas accès au token de connexion.
+   */
+  async function telechargerRecu(cotisation) {
+    setRecuEnCours(cotisation.id);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const nomFichier = `recu_${cotisation.codeCotisation}.pdf`;
+      const destination = `${FileSystem.cacheDirectory}${nomFichier}`;
+
+      const resultat = await FileSystem.downloadAsync(
+        `${BASE_URL}/cotisations/${cotisation.id}/recu`,
+        destination,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
+
+      if (resultat.status !== 200) {
+        throw new Error("Impossible de récupérer le reçu (êtes-vous bien connecté ?).");
+      }
+
+      const partagePossible = await Sharing.isAvailableAsync();
+      if (partagePossible) {
+        await Sharing.shareAsync(resultat.uri, { mimeType: 'application/pdf', dialogTitle: nomFichier });
+      } else {
+        Alert.alert('Reçu téléchargé', `Enregistré ici : ${resultat.uri}`);
+      }
+    } catch (err) {
+      Alert.alert('Erreur', err.message);
+    } finally {
+      setRecuEnCours(null);
     }
   }
 
@@ -311,6 +355,33 @@ export default function DetailGroupeScreen({ route, navigation }) {
         );
       }}
       ListEmptyComponent={<Text style={styles.vide}>Aucun membre pour l'instant.</Text>}
+      ListFooterComponent={
+        <View style={{ marginTop: 24 }}>
+          <Text style={styles.titreSection}>Cotisations ({cotisations.length})</Text>
+          {cotisations.length === 0 ? (
+            <Text style={styles.vide}>Aucune cotisation enregistrée pour l'instant.</Text>
+          ) : (
+            cotisations.map((c) => (
+              <View key={c.id} style={styles.carteCotisation}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.nomMembre}>{c.beneficiaireNom} {c.beneficiairePrenom}</Text>
+                  <Text style={styles.infoCotisation}>{c.codeCotisation} · {c.dateVersement}</Text>
+                  <Text style={styles.montantCotisation}>{Number(c.montant).toLocaleString('fr-FR')} FCFA</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.boutonPetit}
+                  onPress={() => telechargerRecu(c)}
+                  disabled={recuEnCours === c.id}
+                >
+                  {recuEnCours === c.id
+                    ? <ActivityIndicator size="small" color={couleurs.vertMoyen} />
+                    : <Text style={styles.texteBoutonPetit}>📄 Reçu</Text>}
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
+        </View>
+      }
     />
   );
 }
@@ -354,6 +425,12 @@ const styles = StyleSheet.create({
   },
   nomMembre: { fontWeight: '600', color: couleurs.grisTexte },
   etiquetteResponsable: { fontSize: 11, color: couleurs.orMil, fontWeight: '600', marginTop: 2 },
+  carteCotisation: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: couleurs.blanc, borderRadius: 10, padding: 14, marginBottom: 8,
+  },
+  infoCotisation: { fontSize: 11, color: '#888', marginTop: 2 },
+  montantCotisation: { fontSize: 13, fontWeight: '700', color: couleurs.vertFonce, marginTop: 3 },
   boutonPetit: { borderRadius: 6, paddingVertical: 6, paddingHorizontal: 8, borderWidth: 1, borderColor: couleurs.vertMoyen },
   texteBoutonPetit: { fontSize: 10, color: couleurs.vertMoyen, fontWeight: '600' },
   boutonPetitDanger: { borderRadius: 6, paddingVertical: 6, paddingHorizontal: 8, borderWidth: 1, borderColor: couleurs.brique },
