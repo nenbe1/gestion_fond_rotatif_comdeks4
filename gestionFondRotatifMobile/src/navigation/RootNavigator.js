@@ -13,6 +13,8 @@ import ListeBeneficiairesScreen from '../screens/comite/ListeBeneficiairesScreen
 import DetailFinancementComiteScreen from '../screens/comite/DetailFinancementComiteScreen';
 import DetailFinancementRemboursementsScreen from '../screens/comite/DetailFinancementRemboursementsScreen';
 import DetailCircuitRemboursementCollectifScreen from '../screens/comite/DetailCircuitRemboursementCollectifScreen';
+import ListeGroupesScreen from '../screens/comite/ListeGroupesScreen';
+import DetailGroupeScreen from '../screens/comite/DetailGroupeScreen';
 import MonCompteScreen from '../screens/beneficiaire/MonCompteScreen';
 import DetailFinancementScreen from '../screens/beneficiaire/DetailFinancementScreen';
 import ConseillerIAScreen from '../screens/beneficiaire/ConseillerIAScreen';
@@ -31,6 +33,12 @@ function PileComite() {
       <Stack.Screen name="DetailFinancementComite" component={DetailFinancementComiteScreen} options={{ title: 'Répartition du financement' }} />
       <Stack.Screen name="DetailFinancementRemboursements" component={DetailFinancementRemboursementsScreen} options={{ title: 'Détail du financement' }} />
       <Stack.Screen name="DetailCircuitRemboursementCollectif" component={DetailCircuitRemboursementCollectifScreen} options={{ title: 'Circuit de validation' }} />
+      <Stack.Screen name="ListeGroupes" component={ListeGroupesScreen} options={{ title: 'Groupes MMF' }} />
+      <Stack.Screen
+        name="DetailGroupe"
+        component={DetailGroupeScreen}
+        options={({ route }) => ({ title: route.params?.nomGroupe || 'Détail du groupe' })}
+      />
     </Stack.Navigator>
   );
 }

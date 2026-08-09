@@ -1,43 +1,56 @@
 const db = require('../config/db');
 
 /**
- * Middleware générique de contrôle d'accès par HABILITATION — au lieu de
- * vérifier un rôle/fonction en dur (ex: "fonction_code === 'TRESORIER'"),
- * on vérifie que la fonction de la personne connectée a bien
- * l'habilitation demandée, cochée dans Paramétrage > Fonctions.
+ * Vérifie que le membre du comité connecté a bien l'habilitation demandée,
+ * via la fonction à laquelle il est rattaché (table fonction_habilitation,
+ * gérée depuis Paramétrage > Fonctions & habilitations).
  *
- * Concerne uniquement les membres du comité (seule "Fonction" a des
- * habilitations, voir schema_mmf.sql) — les autres rôles (Responsable,
- * Autorité, Bénéficiaire) continuent d'utiliser leurs propres
- * restrictions (reserverAResponsable, etc.), non concernés par ce
- * système de fonction/habilitation.
+ * - La Responsable passe toujours (supervision totale du système) — elle
+ *   n'a pas de fonction de comité et n'apparaît donc jamais dans cette
+ *   table de toute façon.
+ * - Un bénéficiaire ou une Autorité est toujours refusé ici : ce
+ *   middleware ne concerne que les actions internes au comité.
+ * - Un membre du comité dont la fonction n'a pas l'habilitation demandée
+ *   reçoit un 403 explicite (précise l'habilitation manquante).
  *
- * @param {string} codeHabilitation - ex: 'CONFIRMER_REMBOURSEMENT'
+ * À utiliser APRÈS un contrôle de rôle existant (ex: reserverAuComite),
+ * jamais à la place : il affine la vérification, il ne la remplace pas.
+ *
+ * @param {string} code Code de l'habilitation requise (ex: 'GERER_BENEFICIAIRES').
  */
-function reserverParHabilitation(codeHabilitation) {
+function verifierHabilitation(code) {
   return async function (req, res, next) {
+    if (req.role === 'RESPONSABLE') return next();
+
     if (req.role !== 'MEMBRE_COMITE') {
-      return res.status(403).json({ message: "Cette action est réservée à un membre du comité disposant de l'habilitation requise." });
+      return res.status(403).json({ message: 'Cette action est réservée au comité ou à la Responsable.' });
     }
 
-    const [rows] = await db.query(
-      `SELECT 1
-       FROM membre_comite mc
-       INNER JOIN fonction_habilitation fh ON fh.fonction_id = mc.fonction_id
-       INNER JOIN habilitation h ON h.id = fh.habilitation_id
-       WHERE mc.utilisateur_id = ? AND h.code = ?
-       LIMIT 1`,
-      [req.utilisateurId, codeHabilitation]
-    );
+    try {
+      const [rows] = await db.query(
+        `SELECT h.id
+         FROM membre_comite mc
+         INNER JOIN fonction_habilitation fh ON fh.fonction_id = mc.fonction_id
+         INNER JOIN habilitation h ON h.id = fh.habilitation_id
+         WHERE mc.utilisateur_id = ? AND h.code = ?
+         LIMIT 1`,
+        [req.utilisateurId, code]
+      );
 
-    if (rows.length === 0) {
-      return res.status(403).json({
-        message: `Votre fonction n'a pas l'habilitation "${codeHabilitation}" (configurable dans Paramétrage > Fonctions).`,
-      });
+      if (rows.length === 0) {
+        return res.status(403).json({
+          message: `Votre fonction ne dispose pas de l'habilitation requise pour cette action (${code}). Contactez la Responsable si vous pensez que c'est une erreur.`,
+        });
+      }
+      next();
+    } catch (erreur) {
+      res.status(500).json({ message: erreur.message });
     }
-
-    next();
   };
 }
 
-module.exports = { reserverParHabilitation };
+// Exportée sous deux noms : verifierHabilitation (utilisé dans les
+// modules beneficiaires/demandes_financement/rapports/membres_comite)
+// et reserverParHabilitation, alias identique attendu par
+// remboursements/routes/remboursement.routes.js.
+module.exports = { verifierHabilitation, reserverParHabilitation: verifierHabilitation };

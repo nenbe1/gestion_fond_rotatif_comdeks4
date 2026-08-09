@@ -177,6 +177,7 @@ label {
 }
 .champ-conteneur input:focus { outline: none; }
 
+.champ-mot-de-passe { position: relative; display: flex; align-items: center; }
 .champ-mot-de-passe input { padding-right: 2.2rem; }
 .bouton-oeil {
   position: absolute;

@@ -72,6 +72,17 @@ async function majStatutCollectif(id, statut) {
   await db.query('UPDATE remboursement_collectif SET statut = ? WHERE id = ?', [statut, id]);
 }
 
+// AJOUT : liste des remboursements collectifs dont le circuit du comité
+// (Trésorier -> Commissaire -> Président) est terminé et qui attendent
+// la décision de la Responsable — même logique que pour les demandes de
+// financement (EnAttenteResponsable).
+async function findCollectifEnAttenteResponsable() {
+  const [rows] = await db.query(
+    `${SELECT_COLLECTIF_BASE} WHERE rc.statut = 'EnAttenteResponsable' ORDER BY rc.date_prevue ASC`
+  );
+  return rows;
+}
+
 /** Confirme le paiement (montant réellement versé) et crédite le fonds, dans une transaction. */
 async function confirmerPaiementCollectif(connection, id, montantVerse, fondRotatifId) {
   await connection.query(
@@ -89,5 +100,5 @@ async function confirmerPaiementCollectif(connection, id, montantVerse, fondRota
 module.exports = {
   findIndividuelById, findIndividuelByAttributionId, createIndividuel, majStatutIndividuel,
   findCollectifById, findCollectifByFinancementId, createCollectif,
-  majStatutCollectif, confirmerPaiementCollectif,
+  majStatutCollectif, confirmerPaiementCollectif, findCollectifEnAttenteResponsable,
 };

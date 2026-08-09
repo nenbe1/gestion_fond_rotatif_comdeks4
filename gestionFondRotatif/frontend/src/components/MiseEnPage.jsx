@@ -31,6 +31,7 @@ const GROUPES_NAV = [
     liens: [
       { to: '/demandes', icone: '📝', libelle: 'Demandes de financement' },
       { to: '/financements', icone: '💰', libelle: 'Financements' },
+      { to: '/remboursements-attente', icone: '↩️', libelle: 'Remboursements en attente' },
     ],
   },
   {

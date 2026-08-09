@@ -24,6 +24,7 @@ app.use('/api/autorites', require('./modules/autorites/routes/autorite.routes'))
 app.use('/api/parametres', require('./modules/parametrage/routes/parametre.routes'));
 app.use('/api/parametrage', require('./modules/parametrage/routes/parametrage.routes'));
 app.use('/api/administration', require('./modules/administration/routes/administration.routes'));
+app.use('/api/conseiller-ia', require('./modules/conseiller_ia/routes/conseiller_ia.routes'));
 app.use('/api/groupes-mmf', require('./modules/groupes_mmf/routes/groupe_mmf.routes'));
 app.use('/api/cotisations', require('./modules/cotisations/routes/cotisation.routes'));
 

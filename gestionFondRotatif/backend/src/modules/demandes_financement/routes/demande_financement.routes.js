@@ -4,6 +4,7 @@ const router = express.Router();
 const demandeController = require('../controller/demande_financement.controller');
 const { validerCreation } = require('../validator/demande_financement.validator');
 const { verifierToken } = require('../../../middlewares/auth.middleware');
+const { verifierHabilitation } = require('../../../middlewares/habilitation.middleware');
 
 router.use(verifierToken);
 
@@ -15,7 +16,7 @@ function reserverAuComite(req, res, next) {
   next();
 }
 
-router.post('/', reserverAuComite, validerCreation, demandeController.creer);
+router.post('/', reserverAuComite, verifierHabilitation('CREER_DEMANDE_FINANCEMENT'), validerCreation, demandeController.creer);
 router.get('/', demandeController.consulterTous);
 router.get('/:id', demandeController.consulterParId);
 router.get('/:id/beneficiaires-prevus', demandeController.consulterBeneficiairesPrevus);

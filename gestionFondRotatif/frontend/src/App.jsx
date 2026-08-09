@@ -6,6 +6,7 @@ import TableauDeBord from './pages/TableauDeBord';
 import Beneficiaires from './pages/Beneficiaires';
 import MembresComite from './pages/MembresComite';
 import Financements from './pages/Financements';
+import RemboursementsAttente from './pages/RemboursementsAttente';
 import DetailFinancement from './pages/DetailFinancement';
 import Demandes from './pages/Demandes';
 import DetailDemande from './pages/DetailDemande';
@@ -104,6 +105,7 @@ function App() {
             <Route path="membres-comite" element={<MembresComite />} />
             <Route path="financements" element={<Financements />} />
             <Route path="financements/:id" element={<DetailFinancement />} />
+            <Route path="remboursements-attente" element={<RemboursementsAttente />} />
             <Route path="demandes" element={<Demandes />} />
             <Route path="demandes/:id" element={<DetailDemande />} />
             <Route path="situation-cantons" element={<SituationCantons />} />

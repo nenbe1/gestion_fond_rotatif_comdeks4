@@ -31,6 +31,7 @@ export default function Autorites() {
   const [afficherFormulaire, setAfficherFormulaire] = useState(false);
   const [formulaire, setFormulaire] = useState(FORMULAIRE_VIDE);
   const [envoiEnCours, setEnvoiEnCours] = useState(false);
+  const [motDePasseVisible, setMotDePasseVisible] = useState(false);
 
   const [autoriteEnEditionId, setAutoriteEnEditionId] = useState(null);
   const [formulaireEdition, setFormulaireEdition] = useState(null);
@@ -171,7 +172,27 @@ export default function Autorites() {
               </select>
             </label>
             <label>Téléphone <input name="telephone" value={formulaire.telephone} onChange={gererChangement} required /></label>
-            <label>Mot de passe <input type="password" name="mot_de_passe" value={formulaire.mot_de_passe} onChange={gererChangement} required /></label>
+            <label>
+              Mot de passe
+              <div className="champ-mot-de-passe">
+                <input
+                  type={motDePasseVisible ? 'text' : 'password'}
+                  name="mot_de_passe"
+                  value={formulaire.mot_de_passe}
+                  onChange={gererChangement}
+                  required
+                />
+                <button
+                  type="button"
+                  className="bouton-oeil"
+                  onClick={() => setMotDePasseVisible(!motDePasseVisible)}
+                  aria-label={motDePasseVisible ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                  tabIndex={-1}
+                >
+                  {motDePasseVisible ? '🙈' : '👁'}
+                </button>
+              </div>
+            </label>
             <label className="pleine-largeur">
               Fonction <input name="fonction" placeholder='Ex : "Délégué départemental de la Jeunesse"' value={formulaire.fonction} onChange={gererChangement} required />
             </label>

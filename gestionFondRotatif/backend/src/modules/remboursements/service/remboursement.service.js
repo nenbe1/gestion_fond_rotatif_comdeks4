@@ -141,29 +141,20 @@ async function consulterCollectifParId(id) {
 }
 
 /**
- * Appelé par validations.service à l'approbation de la dernière étape
- * (Président, ordre 2) d'un circuit portant sur un RemboursementCollectif.
- * Contrairement au Financement, il n'y a pas de droit de veto de la
- * Responsable ici (règle non précisée par le président pour ce cas) :
- * l'approbation du comité aux 3 niveaux confirme directement le paiement.
+ * CORRECTION : appelé par validations.service à l'approbation de la
+ * dernière étape (Président, ordre 2) d'un circuit portant sur un
+ * RemboursementCollectif — avant, ça confirmait ET créditait le fonds
+ * directement dès la fin du circuit comité, sans que la Responsable
+ * n'intervienne. Maintenant, ça met seulement le remboursement en
+ * 'EnAttenteResponsable' : comme pour une demande de financement, c'est
+ * elle qui a le dernier mot avant que l'argent ne soit réellement
+ * recrédité (voir decisionResponsable ci-dessous).
  */
 async function confirmerApresValidation(remboursementCollectifId) {
   const row = await remboursementRepository.findCollectifById(remboursementCollectifId);
   if (!row) throw erreur('Remboursement collectif introuvable.', 404);
 
-  const connection = await db.getConnection();
-  try {
-    await connection.beginTransaction();
-    await remboursementRepository.confirmerPaiementCollectif(
-      connection, remboursementCollectifId, row.montant_prevu, row.fond_rotatif_id
-    );
-    await connection.commit();
-  } catch (err) {
-    await connection.rollback();
-    throw err;
-  } finally {
-    connection.release();
-  }
+  await remboursementRepository.majStatutCollectif(remboursementCollectifId, 'EnAttenteResponsable');
   return consulterCollectifParId(remboursementCollectifId);
 }
 
@@ -171,8 +162,53 @@ async function rejeterApresValidation(remboursementCollectifId) {
   await remboursementRepository.majStatutCollectif(remboursementCollectifId, 'Rejete');
 }
 
+/** AJOUT : liste des remboursements collectifs en attente de la décision de la Responsable. */
+async function consulterCollectifEnAttenteResponsable() {
+  const rows = await remboursementRepository.findCollectifEnAttenteResponsable();
+  return rows.map(RemboursementCollectif.fromRow);
+}
+
+/**
+ * AJOUT : décision de la Responsable sur un remboursement collectif dont
+ * le circuit du comité est terminé (statut 'EnAttenteResponsable') —
+ * même principe que la décision sur une demande de financement.
+ *   - 'Approuve' : crédite réellement le fonds (transaction), statut -> 'Confirme'.
+ *   - 'Rejete'   : statut -> 'Rejete', rien n'est crédité.
+ * @throws {Error} 404 si introuvable, 409 si pas encore EnAttenteResponsable, 400 si décision invalide
+ */
+async function decisionResponsable(remboursementCollectifId, decision) {
+  const row = await remboursementRepository.findCollectifById(remboursementCollectifId);
+  if (!row) throw erreur('Remboursement collectif introuvable.', 404);
+  if (row.statut !== 'EnAttenteResponsable') {
+    throw erreur("Ce remboursement collectif n'est pas en attente de décision.", 409);
+  }
+
+  if (decision === 'Approuve') {
+    const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
+      await remboursementRepository.confirmerPaiementCollectif(
+        connection, remboursementCollectifId, row.montant_prevu, row.fond_rotatif_id
+      );
+      await connection.commit();
+    } catch (err) {
+      await connection.rollback();
+      throw err;
+    } finally {
+      connection.release();
+    }
+  } else if (decision === 'Rejete') {
+    await remboursementRepository.majStatutCollectif(remboursementCollectifId, 'Rejete');
+  } else {
+    throw erreur("decision doit être 'Approuve' ou 'Rejete'.", 400);
+  }
+
+  return consulterCollectifParId(remboursementCollectifId);
+}
+
 module.exports = {
   creerIndividuel, confirmerIndividuel, rejeterIndividuel, consulterIndividuelParAttribution,
   creerCollectif, consulterCollectifParFinancement, consulterCollectifParId,
   confirmerApresValidation, rejeterApresValidation,
+  consulterCollectifEnAttenteResponsable, decisionResponsable,
 };

@@ -364,63 +364,56 @@ CREATE TABLE demande_beneficiaire_prevu (
 );
 
 -- ---------------------------------------------------------------------
--- GROUPE_MMF et ADHESION_GROUPE (module Groupes MMF)
--- Un bénéficiaire peut appartenir à plusieurs groupes ; un groupe a un
--- responsable élu parmi ses propres membres (vérifié applicativement,
--- pas par contrainte SQL - voir groupe_mmf.service.js). On ne supprime
--- jamais un groupe ni une adhésion : on désactive (actif = FALSE), pour
--- ne jamais casser l'historique (cotisations à venir, notamment).
+-- 13. CONSEILLER_IA_HISTORIQUE — historique des échanges question/réponse
+-- entre un bénéficiaire (Mobile) et le Conseiller Financier IA (Gemini).
+-- ---------------------------------------------------------------------
+CREATE TABLE conseiller_ia_historique (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  beneficiaire_id BIGINT NOT NULL,
+  question TEXT NOT NULL,
+  reponse TEXT NOT NULL,
+  date_creation TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_conseiller_ia_beneficiaire FOREIGN KEY (beneficiaire_id) REFERENCES beneficiaire(id)
+);
+
+-- ---------------------------------------------------------------------
+-- 14. GROUPE_MMF — un groupe de solidarité, rattaché à un canton, dirigé
+-- par un bénéficiaire "responsable" élu parmi ses membres.
 -- ---------------------------------------------------------------------
 CREATE TABLE groupe_mmf (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   nom VARCHAR(150) NOT NULL,
   canton_id BIGINT NOT NULL,
-  responsable_beneficiaire_id BIGINT NULL, -- doit être un membre actif du groupe, voir service
+  responsable_beneficiaire_id BIGINT NULL,
   date_creation DATE NOT NULL,
   actif BOOLEAN NOT NULL DEFAULT TRUE,
-  CONSTRAINT fk_groupe_canton FOREIGN KEY (canton_id) REFERENCES canton(id),
-  CONSTRAINT fk_groupe_responsable FOREIGN KEY (responsable_beneficiaire_id) REFERENCES beneficiaire(id)
+  CONSTRAINT fk_groupe_mmf_canton FOREIGN KEY (canton_id) REFERENCES canton(id),
+  CONSTRAINT fk_groupe_mmf_responsable FOREIGN KEY (responsable_beneficiaire_id) REFERENCES beneficiaire(id)
 );
 
+-- ---------------------------------------------------------------------
+-- 15. ADHESION_GROUPE — un bénéficiaire dans un groupe MMF. Un même
+-- bénéficiaire n'a qu'UNE seule ligne d'adhésion par groupe (réactivée
+-- si besoin, jamais dupliquée) — d'où la contrainte UNIQUE.
+-- ---------------------------------------------------------------------
 CREATE TABLE adhesion_groupe (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   groupe_mmf_id BIGINT NOT NULL,
   beneficiaire_id BIGINT NOT NULL,
   date_adhesion DATE NOT NULL,
-  actif BOOLEAN NOT NULL DEFAULT TRUE, -- FALSE = a quitté le groupe (jamais supprimé, garde l'historique)
+  actif BOOLEAN NOT NULL DEFAULT TRUE,
   CONSTRAINT fk_adhesion_groupe FOREIGN KEY (groupe_mmf_id) REFERENCES groupe_mmf(id),
   CONSTRAINT fk_adhesion_beneficiaire FOREIGN KEY (beneficiaire_id) REFERENCES beneficiaire(id),
-  UNIQUE KEY uniq_adhesion (groupe_mmf_id, beneficiaire_id)
+  CONSTRAINT uq_adhesion_groupe_beneficiaire UNIQUE (groupe_mmf_id, beneficiaire_id)
 );
 
 -- ---------------------------------------------------------------------
--- COTISATION (module Cotisations)
--- Versée individuellement par un bénéficiaire, à la fréquence qu'il
--- veut (pas de périodicité imposée). Toujours rattachée à un de ses
--- groupes MMF (vérifié applicativement : doit être membre actif du
--- groupe au moment du versement, voir cotisation.service.js).
+-- 16. COTISATION — un versement individuel d'un bénéficiaire dans un
+-- groupe MMF, sans périodicité imposée.
 -- ---------------------------------------------------------------------
 CREATE TABLE cotisation (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  code_cotisation VARCHAR(50) UNIQUE NOT NULL,
-  groupe_mmf_id BIGINT NOT NULL,
-  beneficiaire_id BIGINT NOT NULL,
-  montant DECIMAL(15,2) NOT NULL,
-  date_versement DATE NOT NULL,
-  observation TEXT NULL,
-  CONSTRAINT fk_cotisation_groupe FOREIGN KEY (groupe_mmf_id) REFERENCES groupe_mmf(id),
-  CONSTRAINT fk_cotisation_beneficiaire FOREIGN KEY (beneficiaire_id) REFERENCES beneficiaire(id)
-);
-
--- ---------------------------------------------------------------------
--- COTISATION (module Cotisations)
--- Versée individuellement par un bénéficiaire, à volonté (pas de
--- périodicité imposée), enregistrée par le membre du comité qui la
--- reçoit. code_cotisation sert de numéro de référence sur le reçu PDF.
--- ---------------------------------------------------------------------
-CREATE TABLE cotisation (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  code_cotisation VARCHAR(50) UNIQUE NOT NULL,
+  code_cotisation VARCHAR(30) UNIQUE NOT NULL,
   groupe_mmf_id BIGINT NOT NULL,
   beneficiaire_id BIGINT NOT NULL,
   montant DECIMAL(15,2) NOT NULL,
@@ -429,7 +422,7 @@ CREATE TABLE cotisation (
   enregistre_par BIGINT NOT NULL,
   CONSTRAINT fk_cotisation_groupe FOREIGN KEY (groupe_mmf_id) REFERENCES groupe_mmf(id),
   CONSTRAINT fk_cotisation_beneficiaire FOREIGN KEY (beneficiaire_id) REFERENCES beneficiaire(id),
-  CONSTRAINT fk_cotisation_membre FOREIGN KEY (enregistre_par) REFERENCES membre_comite(id)
+  CONSTRAINT fk_cotisation_membre_comite FOREIGN KEY (enregistre_par) REFERENCES membre_comite(id)
 );
 
 -- =====================================================================
@@ -443,6 +436,33 @@ INSERT INTO fonction (code, libelle) VALUES
   ('TRESORIER', 'Trésorier du comité'),
   ('COMMISSAIRE', 'Commissaire aux comptes'),
   ('MEMBRE', 'Membre simple du comité');
+
+-- Habilitations de base + attribution aux 3 fonctions déjà actives dans
+-- le circuit de validation. GERER_MEMBRES_COMITE n'est attribuée à
+-- aucune fonction : gérer le comité reste réservé à la Responsable
+-- (qui contourne toujours cette vérification, voir habilitation.middleware.js).
+INSERT INTO habilitation (code, libelle) VALUES
+  ('GERER_BENEFICIAIRES', 'Enregistrer / modifier / supprimer un bénéficiaire'),
+  ('CREER_DEMANDE_FINANCEMENT', 'Proposer une demande de financement'),
+  ('GERER_MEMBRES_COMITE', 'Ajouter / modifier un membre du comité'),
+  ('GENERER_RAPPORT', 'Générer un nouvel instantané de rapport'),
+  ('SUPPRIMER_RAPPORT', 'Supprimer un rapport existant'),
+  ('CONFIRMER_REMBOURSEMENT', 'Confirmer ou rejeter un remboursement individuel (double validation)');
+
+INSERT INTO fonction_habilitation (fonction_id, habilitation_id)
+SELECT f.id, h.id FROM fonction f, habilitation h
+WHERE f.code = 'PRESIDENT'
+  AND h.code IN ('GERER_BENEFICIAIRES','CREER_DEMANDE_FINANCEMENT','GERER_MEMBRES_COMITE','GENERER_RAPPORT','SUPPRIMER_RAPPORT');
+
+INSERT INTO fonction_habilitation (fonction_id, habilitation_id)
+SELECT f.id, h.id FROM fonction f, habilitation h
+WHERE f.code = 'TRESORIER'
+  AND h.code IN ('CREER_DEMANDE_FINANCEMENT','GENERER_RAPPORT','CONFIRMER_REMBOURSEMENT');
+
+INSERT INTO fonction_habilitation (fonction_id, habilitation_id)
+SELECT f.id, h.id FROM fonction f, habilitation h
+WHERE f.code = 'COMMISSAIRE'
+  AND h.code IN ('GERER_BENEFICIAIRES','CREER_DEMANDE_FINANCEMENT');
 
 INSERT INTO parametre (cle, valeur, description) VALUES
   ('taux_majoration_remboursement', '10', 'Majoration appliquée sur le remboursement, représentant les frais administratifs (%)');

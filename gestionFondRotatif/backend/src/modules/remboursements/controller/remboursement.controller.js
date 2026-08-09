@@ -70,7 +70,28 @@ async function consulterCollectifParId(req, res) {
   }
 }
 
+/** AJOUT : GET /api/remboursements/collectif/en-attente-responsable — Responsable uniquement (voir routes). */
+async function consulterCollectifEnAttenteResponsable(req, res) {
+  try {
+    const remboursements = await remboursementService.consulterCollectifEnAttenteResponsable();
+    res.status(200).json({ remboursements });
+  } catch (erreur) {
+    res.status(erreur.statusCode || 500).json({ message: erreur.message });
+  }
+}
+
+/** AJOUT : PUT /api/remboursements/collectif/:id/decision-responsable — Responsable uniquement (voir routes). */
+async function decisionResponsable(req, res) {
+  try {
+    const remboursement = await remboursementService.decisionResponsable(req.params.id, req.body.decision);
+    res.status(200).json({ remboursement });
+  } catch (erreur) {
+    res.status(erreur.statusCode || 500).json({ message: erreur.message });
+  }
+}
+
 module.exports = {
   creerIndividuel, confirmerIndividuel, rejeterIndividuel, consulterIndividuelParAttribution,
   creerCollectif, consulterCollectifParFinancement, consulterCollectifParId,
+  consulterCollectifEnAttenteResponsable, decisionResponsable,
 };

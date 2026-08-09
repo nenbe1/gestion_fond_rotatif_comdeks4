@@ -90,6 +90,11 @@ export default function TableauDeBordComiteScreen({ navigation }) {
               <Text style={styles.texteLienCarte}>Bénéficiaires de mon canton</Text>
               <Text style={styles.chevron}>›</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={styles.lienCarte} onPress={() => navigation.navigate('ListeGroupes')} activeOpacity={0.7}>
+              <Text style={styles.iconeLien}>🤝</Text>
+              <Text style={styles.texteLienCarte}>Groupes MMF</Text>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
           </View>
         </View>
       }
