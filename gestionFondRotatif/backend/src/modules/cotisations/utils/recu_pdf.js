@@ -1,6 +1,18 @@
 const PDFDocument = require('pdfkit');
 
 /**
+ * Formate un montant avec des espaces classiques comme séparateurs de
+ * milliers (ex: 1000 -> "1 000"). CORRECTION : Number.toLocaleString('fr-FR')
+ * insère une espace fine insécable (caractère spécial), que la police
+ * par défaut de PDFKit (Helvetica) ne sait pas afficher — d'où le "1/000"
+ * au lieu de "1 000" sur le reçu. On formate donc nous-mêmes avec une
+ * espace ASCII normale.
+ */
+function formaterMontant(montant) {
+  return Number(montant).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
+/**
  * Génère le reçu PDF d'une cotisation et l'écrit directement dans la
  * réponse HTTP (streaming — pas de fichier temporaire sur le disque).
  * @param {import('express').Response} res
@@ -31,7 +43,7 @@ function genererRecuCotisation(res, cotisation) {
   ligne('Date :', new Date(cotisation.dateVersement).toLocaleDateString('fr-FR'));
   ligne('Bénéficiaire :', `${cotisation.beneficiaireNom} ${cotisation.beneficiairePrenom}`);
   ligne('Groupe MMF :', cotisation.groupeNom);
-  ligne('Montant versé :', `${Number(cotisation.montant).toLocaleString('fr-FR')} FCFA`);
+  ligne('Montant versé :', `${formaterMontant(cotisation.montant)} FCFA`);
   if (cotisation.observation) ligne('Observation :', cotisation.observation);
   ligne('Enregistré par :', `${cotisation.enregistreParNom} ${cotisation.enregistreParPrenom}`);
 

@@ -101,6 +101,11 @@ export default function MonCompteScreen({ navigation }) {
               </View>
             )}
 
+            <TouchableOpacity style={styles.lienCotisations} onPress={() => navigation.navigate('MesCotisations')} activeOpacity={0.85}>
+              <Text style={styles.lienCotisationsTexte}>💰 Voir mes cotisations</Text>
+              <Text style={styles.lienCotisationsFleche}>›</Text>
+            </TouchableOpacity>
+
             <Text style={styles.sousTitreListe}>Mes financements</Text>
           </View>
         </View>
@@ -187,6 +192,13 @@ const styles = StyleSheet.create({
   libelleStat: { fontSize: 11, color: '#888', textAlign: 'center', marginTop: 4 },
 
   sousTitreListe: { fontSize: 13, fontWeight: '700', color: '#888', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 10 },
+  lienCotisations: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: couleurs.blanc, borderRadius: 14, padding: 16, marginBottom: 18,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
+  },
+  lienCotisationsTexte: { fontSize: 14, fontWeight: '600', color: couleurs.grisTexte },
+  lienCotisationsFleche: { fontSize: 20, color: '#bbb' },
   ligneFinancement: {
     flexDirection: 'row', justifyContent: 'space-between',
     backgroundColor: couleurs.blanc, borderRadius: 14, padding: 14,

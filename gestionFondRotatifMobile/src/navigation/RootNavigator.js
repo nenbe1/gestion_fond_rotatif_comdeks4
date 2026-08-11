@@ -18,6 +18,7 @@ import DetailGroupeScreen from '../screens/comite/DetailGroupeScreen';
 import MonCompteScreen from '../screens/beneficiaire/MonCompteScreen';
 import DetailFinancementScreen from '../screens/beneficiaire/DetailFinancementScreen';
 import ConseillerIAScreen from '../screens/beneficiaire/ConseillerIAScreen';
+import MesCotisationsScreen from '../screens/beneficiaire/MesCotisationsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -50,6 +51,7 @@ function PileBeneficiaire() {
       <Stack.Screen name="MonCompte" component={MonCompteScreen} options={{ title: 'Mon compte' }} />
       <Stack.Screen name="DetailFinancement" component={DetailFinancementScreen} options={{ title: 'Détail du financement' }} />
       <Stack.Screen name="ConseillerIA" component={ConseillerIAScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="MesCotisations" component={MesCotisationsScreen} options={{ title: 'Mes cotisations' }} />
     </Stack.Navigator>
   );
 }

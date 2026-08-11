@@ -1,10 +1,8 @@
 import { useCallback, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, ScrollView, TextInput, StyleSheet, RefreshControl, Alert, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
-import appelerApi, { BASE_URL } from '../../api/client';
+import appelerApi from '../../api/client';
+import { telechargerRecuCotisation } from '../../utils/telechargerRecuCotisation';
 import { couleurs } from '../../theme/couleurs';
 
 /**
@@ -181,26 +179,7 @@ export default function DetailGroupeScreen({ route, navigation }) {
   async function telechargerRecu(cotisation) {
     setRecuEnCours(cotisation.id);
     try {
-      const token = await AsyncStorage.getItem('token');
-      const nomFichier = `recu_${cotisation.codeCotisation}.pdf`;
-      const destination = `${FileSystem.cacheDirectory}${nomFichier}`;
-
-      const resultat = await FileSystem.downloadAsync(
-        `${BASE_URL}/cotisations/${cotisation.id}/recu`,
-        destination,
-        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
-      );
-
-      if (resultat.status !== 200) {
-        throw new Error("Impossible de récupérer le reçu (êtes-vous bien connecté ?).");
-      }
-
-      const partagePossible = await Sharing.isAvailableAsync();
-      if (partagePossible) {
-        await Sharing.shareAsync(resultat.uri, { mimeType: 'application/pdf', dialogTitle: nomFichier });
-      } else {
-        Alert.alert('Reçu téléchargé', `Enregistré ici : ${resultat.uri}`);
-      }
+      await telechargerRecuCotisation(cotisation.id, cotisation.codeCotisation);
     } catch (err) {
       Alert.alert('Erreur', err.message);
     } finally {
@@ -357,7 +336,14 @@ export default function DetailGroupeScreen({ route, navigation }) {
       ListEmptyComponent={<Text style={styles.vide}>Aucun membre pour l'instant.</Text>}
       ListFooterComponent={
         <View style={{ marginTop: 24 }}>
-          <Text style={styles.titreSection}>Cotisations ({cotisations.length})</Text>
+          <View style={styles.enTeteCotisations}>
+            <Text style={styles.titreSection}>Cotisations ({cotisations.length})</Text>
+            {cotisations.length > 0 && (
+              <Text style={styles.totalGroupe}>
+                {cotisations.reduce((somme, c) => somme + Number(c.montant), 0).toLocaleString('fr-FR')} FCFA
+              </Text>
+            )}
+          </View>
           {cotisations.length === 0 ? (
             <Text style={styles.vide}>Aucune cotisation enregistrée pour l'instant.</Text>
           ) : (
@@ -419,6 +405,8 @@ const styles = StyleSheet.create({
   texteBoutonValider: { color: couleurs.blanc, fontWeight: '600' },
 
   titreSection: { fontSize: 13, fontWeight: '700', color: '#888', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 10 },
+  enTeteCotisations: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  totalGroupe: { fontSize: 13, fontWeight: '700', color: couleurs.vertFonce },
   carteMembre: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: couleurs.blanc, borderRadius: 10, padding: 14, marginBottom: 8,
