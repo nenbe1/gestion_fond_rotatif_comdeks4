@@ -22,6 +22,7 @@ function reserverAuComite(req, res, next) {
 
 router.post('/', reserverAuComite, validerCreation, controller.creer);
 router.get('/', controller.consulterTous);
+router.get('/mes-groupes', controller.mesGroupes);
 router.get('/:id', controller.consulterParId);
 router.put('/:id', reserverAuComite, validerCreation, controller.modifierNom);
 router.put('/:id/desactiver', reserverAuComite, controller.desactiver);

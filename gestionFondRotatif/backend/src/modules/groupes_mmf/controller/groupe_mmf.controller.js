@@ -1,5 +1,6 @@
 const groupeService = require('../service/groupe_mmf.service');
 const membreComiteRepository = require('../../membres_comite/repository/membre_comite.repository');
+const beneficiaireRepository = require('../../beneficiaires/repository/beneficiaire.repository');
 
 async function resoudreCantonAppelant(req) {
   if (req.role !== 'MEMBRE_COMITE') return undefined; // Responsable/Autorité : pas de restriction de canton
@@ -17,10 +18,29 @@ async function creer(req, res) {
   }
 }
 
+// CORRECTION : consulterTous() n'imposait aucune restriction pour un
+// bénéficiaire — il voyait tous les groupes de tout le pays au lieu de
+// rien (ce n'est pas à lui de parcourir cette liste, voir mesGroupes()
+// ci-dessous pour son propre cas d'usage).
 async function consulterTous(req, res) {
   try {
+    if (req.role === 'BENEFICIAIRE') {
+      return res.status(403).json({ message: "Utilisez /groupes-mmf/mes-groupes pour consulter vos propres groupes." });
+    }
     const cantonId = await resoudreCantonAppelant(req);
     const groupes = await groupeService.consulterTous(cantonId);
+    res.status(200).json({ groupes });
+  } catch (erreur) {
+    res.status(erreur.statusCode || 500).json({ message: erreur.message });
+  }
+}
+
+/** GET /api/groupes-mmf/mes-groupes — les groupes du bénéficiaire connecté. */
+async function mesGroupes(req, res) {
+  try {
+    const beneficiaire = await beneficiaireRepository.findByUtilisateurId(req.utilisateurId);
+    if (!beneficiaire) return res.status(403).json({ message: 'Compte bénéficiaire introuvable.' });
+    const groupes = await groupeService.mesGroupes(beneficiaire.id);
     res.status(200).json({ groupes });
   } catch (erreur) {
     res.status(erreur.statusCode || 500).json({ message: erreur.message });
@@ -107,5 +127,5 @@ async function definirResponsable(req, res) {
 
 module.exports = {
   creer, consulterTous, consulterParId, modifierNom, desactiver, activer,
-  consulterMembres, ajouterMembre, retirerMembre, definirResponsable,
+  consulterMembres, ajouterMembre, retirerMembre, definirResponsable, mesGroupes,
 };

@@ -60,6 +60,21 @@ async function findMembresByGroupeId(groupeId, { actifSeulement } = {}) {
   return rows;
 }
 
+/** Les groupes auxquels appartient un bénéficiaire (sens inverse de findMembresByGroupeId) — utilisé pour "Mes groupes" côté Mobile bénéficiaire. */
+async function findGroupesByBeneficiaireId(beneficiaireId) {
+  const [rows] = await db.query(
+    `SELECT g.*, c.nom AS canton_nom, ag.date_adhesion,
+       (SELECT COUNT(*) FROM adhesion_groupe ag2 WHERE ag2.groupe_mmf_id = g.id AND ag2.actif = TRUE) AS nombre_membres
+     FROM adhesion_groupe ag
+     INNER JOIN groupe_mmf g ON g.id = ag.groupe_mmf_id
+     INNER JOIN canton c ON c.id = g.canton_id
+     WHERE ag.beneficiaire_id = ? AND ag.actif = TRUE
+     ORDER BY ag.date_adhesion DESC`,
+    [beneficiaireId]
+  );
+  return rows;
+}
+
 async function findAdhesion(groupeId, beneficiaireId) {
   const [rows] = await db.query(
     `${SELECT_ADHESION_BASE} WHERE ag.groupe_mmf_id = ? AND ag.beneficiaire_id = ? LIMIT 1`,
@@ -102,5 +117,5 @@ async function retirerMembre(id) {
 
 module.exports = {
   findAll, findById, create, update,
-  findMembresByGroupeId, findAdhesion, findAdhesionById, ajouterMembre, retirerMembre,
+  findMembresByGroupeId, findGroupesByBeneficiaireId, findAdhesion, findAdhesionById, ajouterMembre, retirerMembre,
 };

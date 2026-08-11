@@ -97,6 +97,12 @@ async function consulterMembres(groupeId) {
   return rows.map(AdhesionGroupe.fromRow);
 }
 
+/** Les groupes du bénéficiaire connecté, avec sa date d'adhésion à chacun. */
+async function mesGroupes(beneficiaireId) {
+  const rows = await groupeRepository.findGroupesByBeneficiaireId(beneficiaireId);
+  return rows.map((row) => ({ ...GroupeMMF.fromRow(row), dateAdhesion: row.date_adhesion }));
+}
+
 /**
  * Désigne le responsable du groupe — doit obligatoirement être un membre
  * ACTIF du groupe lui-même (élu parmi ses pairs, jamais quelqu'un
@@ -120,5 +126,5 @@ async function definirResponsable(groupeId, beneficiaireId, cantonIdAppelant) {
 
 module.exports = {
   creer, consulterTous, consulterParId, modifierNom, basculerActif,
-  ajouterMembre, retirerMembre, consulterMembres, definirResponsable,
+  ajouterMembre, retirerMembre, consulterMembres, definirResponsable, mesGroupes,
 };

@@ -14,14 +14,19 @@ import { couleurs } from '../../theme/couleurs';
  */
 export default function MesCotisationsScreen() {
   const [cotisations, setCotisations] = useState([]);
+  const [groupes, setGroupes] = useState([]);
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState('');
   const [recuEnCours, setRecuEnCours] = useState(null);
 
   const charger = useCallback(async () => {
     try {
-      const donnees = await appelerApi('/cotisations');
-      setCotisations(donnees.cotisations);
+      const [c, g] = await Promise.all([
+        appelerApi('/cotisations'),
+        appelerApi('/groupes-mmf/mes-groupes'),
+      ]);
+      setCotisations(c.cotisations);
+      setGroupes(g.groupes);
       setErreur('');
     } catch (err) {
       setErreur(err.message);
@@ -32,7 +37,18 @@ export default function MesCotisationsScreen() {
 
   useFocusEffect(useCallback(() => { charger(); }, [charger]));
 
-  const total = cotisations.reduce((somme, c) => somme + Number(c.montant), 0);
+  const [filtrePeriode, setFiltrePeriode] = useState('tout'); // 'tout' | 'mois' | 'trimestre'
+
+  function dateLimitePourFiltre(filtre) {
+    if (filtre === 'tout') return null;
+    const limite = new Date();
+    limite.setMonth(limite.getMonth() - (filtre === 'mois' ? 1 : 3));
+    return limite.toISOString().slice(0, 10); // format YYYY-MM-DD, comparable directement à date_versement
+  }
+
+  const dateLimite = dateLimitePourFiltre(filtrePeriode);
+  const cotisationsFiltrees = dateLimite ? cotisations.filter((c) => c.dateVersement >= dateLimite) : cotisations;
+  const total = cotisationsFiltrees.reduce((somme, c) => somme + Number(c.montant), 0);
 
   async function telechargerRecu(cotisation) {
     setRecuEnCours(cotisation.id);
@@ -49,14 +65,48 @@ export default function MesCotisationsScreen() {
     <FlatList
       style={styles.conteneur}
       contentContainerStyle={styles.contenu}
-      data={cotisations}
+      data={cotisationsFiltrees}
       keyExtractor={(item) => String(item.id)}
       refreshControl={<RefreshControl refreshing={chargement} onRefresh={charger} tintColor={couleurs.vertFonce} />}
       ListHeaderComponent={
-        <View style={styles.carteTotal}>
-          <Text style={styles.libelleTotal}>Total cotisé</Text>
-          <Text style={styles.valeurTotal}>{total.toLocaleString('fr-FR')} FCFA</Text>
-          {erreur ? <Text style={styles.erreur}>{erreur}</Text> : null}
+        <View>
+          <View style={styles.carteTotal}>
+            <Text style={styles.libelleTotal}>Total cotisé</Text>
+            <Text style={styles.valeurTotal}>{total.toLocaleString('fr-FR')} FCFA</Text>
+            {erreur ? <Text style={styles.erreur}>{erreur}</Text> : null}
+          </View>
+
+          <Text style={styles.titreSection}>Mes groupes ({groupes.length})</Text>
+          {groupes.length === 0 && !chargement ? (
+            <Text style={styles.videGroupes}>Vous n'appartenez à aucun groupe MMF pour l'instant.</Text>
+          ) : (
+            groupes.map((g) => (
+              <View key={g.id} style={styles.carteGroupe}>
+                <Text style={styles.nomGroupe}>{g.nom}</Text>
+                <Text style={styles.infoGroupe}>{g.cantonNom} · {g.nombreMembres} membre{g.nombreMembres > 1 ? 's' : ''}</Text>
+                <Text style={styles.infoGroupe}>Membre depuis le {g.dateAdhesion}</Text>
+              </View>
+            ))
+          )}
+
+          <Text style={[styles.titreSection, { marginTop: 18 }]}>Historique des cotisations</Text>
+          <View style={styles.rangeeFiltres}>
+            {[
+              { cle: 'tout', libelle: 'Tout' },
+              { cle: 'mois', libelle: 'Ce mois-ci' },
+              { cle: 'trimestre', libelle: '3 derniers mois' },
+            ].map((f) => (
+              <TouchableOpacity
+                key={f.cle}
+                style={[styles.pastilleFiltre, filtrePeriode === f.cle && styles.pastilleFiltreActive]}
+                onPress={() => setFiltrePeriode(f.cle)}
+              >
+                <Text style={[styles.textePastilleFiltre, filtrePeriode === f.cle && styles.textePastilleFiltreActive]}>
+                  {f.libelle}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
       }
       renderItem={({ item }) => (
@@ -77,7 +127,13 @@ export default function MesCotisationsScreen() {
           </TouchableOpacity>
         </View>
       )}
-      ListEmptyComponent={!chargement ? <Text style={styles.vide}>Aucune cotisation enregistrée pour l'instant.</Text> : null}
+      ListEmptyComponent={
+        !chargement ? (
+          <Text style={styles.vide}>
+            {dateLimite ? "Aucune cotisation sur cette période." : "Aucune cotisation enregistrée pour l'instant."}
+          </Text>
+        ) : null
+      }
     />
   );
 }
@@ -93,6 +149,15 @@ const styles = StyleSheet.create({
   valeurTotal: { color: couleurs.blanc, fontSize: 24, fontWeight: '700', marginTop: 4 },
   erreur: { color: '#ffd7d0', fontSize: 12, marginTop: 8, textAlign: 'center' },
 
+  titreSection: { fontSize: 13, fontWeight: '700', color: '#888', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 10 },
+  videGroupes: { color: '#888', fontSize: 13, marginBottom: 16 },
+  carteGroupe: {
+    backgroundColor: couleurs.blanc, borderRadius: 12, padding: 14, marginBottom: 8,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
+  },
+  nomGroupe: { fontWeight: '700', color: couleurs.grisTexte, fontSize: 14 },
+  infoGroupe: { fontSize: 11, color: '#888', marginTop: 2 },
+
   carteCotisation: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: couleurs.blanc, borderRadius: 12, padding: 14, marginBottom: 10,
@@ -105,4 +170,13 @@ const styles = StyleSheet.create({
   texteBoutonRecu: { fontSize: 12, fontWeight: '600', color: couleurs.vertFonce },
 
   vide: { textAlign: 'center', color: '#888', marginTop: 30, paddingHorizontal: 20 },
+
+  rangeeFiltres: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
+  pastilleFiltre: {
+    borderWidth: 1, borderColor: couleurs.grisClair, borderRadius: 18,
+    paddingHorizontal: 12, paddingVertical: 6, backgroundColor: couleurs.blanc,
+  },
+  pastilleFiltreActive: { backgroundColor: couleurs.vertFonce, borderColor: couleurs.vertFonce },
+  textePastilleFiltre: { fontSize: 12, color: couleurs.grisTexte, fontWeight: '600' },
+  textePastilleFiltreActive: { color: couleurs.blanc },
 });

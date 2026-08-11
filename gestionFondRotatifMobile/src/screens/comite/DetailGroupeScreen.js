@@ -18,6 +18,7 @@ export default function DetailGroupeScreen({ route, navigation }) {
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState('');
   const [recuEnCours, setRecuEnCours] = useState(null); // id de la cotisation dont le reçu se télécharge
+  const [filtrePeriode, setFiltrePeriode] = useState('tout'); // 'tout' | 'mois' | 'trimestre'
 
   const [afficherAjout, setAfficherAjout] = useState(false);
   const [beneficiairesDisponibles, setBeneficiairesDisponibles] = useState([]);
@@ -187,6 +188,17 @@ export default function DetailGroupeScreen({ route, navigation }) {
     }
   }
 
+  function dateLimitePourFiltre(filtre) {
+    if (filtre === 'tout') return null;
+    const limite = new Date();
+    limite.setMonth(limite.getMonth() - (filtre === 'mois' ? 1 : 3));
+    return limite.toISOString().slice(0, 10); // format YYYY-MM-DD, comparable directement à date_versement
+  }
+  const dateLimiteFiltre = dateLimitePourFiltre(filtrePeriode);
+  const cotisationsFiltrees = dateLimiteFiltre
+    ? cotisations.filter((c) => c.dateVersement >= dateLimiteFiltre)
+    : cotisations;
+
   if (chargement && !groupe) {
     return <View style={styles.centre}><ActivityIndicator size="large" color={couleurs.vertFonce} /></View>;
   }
@@ -337,17 +349,36 @@ export default function DetailGroupeScreen({ route, navigation }) {
       ListFooterComponent={
         <View style={{ marginTop: 24 }}>
           <View style={styles.enTeteCotisations}>
-            <Text style={styles.titreSection}>Cotisations ({cotisations.length})</Text>
-            {cotisations.length > 0 && (
+            <Text style={styles.titreSection}>Cotisations ({cotisationsFiltrees.length})</Text>
+            {cotisationsFiltrees.length > 0 && (
               <Text style={styles.totalGroupe}>
-                {cotisations.reduce((somme, c) => somme + Number(c.montant), 0).toLocaleString('fr-FR')} FCFA
+                {cotisationsFiltrees.reduce((somme, c) => somme + Number(c.montant), 0).toLocaleString('fr-FR')} FCFA
               </Text>
             )}
           </View>
-          {cotisations.length === 0 ? (
-            <Text style={styles.vide}>Aucune cotisation enregistrée pour l'instant.</Text>
+          <View style={styles.rangeeFiltres}>
+            {[
+              { cle: 'tout', libelle: 'Tout' },
+              { cle: 'mois', libelle: 'Ce mois-ci' },
+              { cle: 'trimestre', libelle: '3 derniers mois' },
+            ].map((f) => (
+              <TouchableOpacity
+                key={f.cle}
+                style={[styles.pastilleFiltre, filtrePeriode === f.cle && styles.pastilleFiltreActive]}
+                onPress={() => setFiltrePeriode(f.cle)}
+              >
+                <Text style={[styles.textePastilleFiltre, filtrePeriode === f.cle && styles.textePastilleFiltreActive]}>
+                  {f.libelle}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {cotisationsFiltrees.length === 0 ? (
+            <Text style={styles.vide}>
+              {filtrePeriode === 'tout' ? "Aucune cotisation enregistrée pour l'instant." : 'Aucune cotisation sur cette période.'}
+            </Text>
           ) : (
-            cotisations.map((c) => (
+            cotisationsFiltrees.map((c) => (
               <View key={c.id} style={styles.carteCotisation}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.nomMembre}>{c.beneficiaireNom} {c.beneficiairePrenom}</Text>
@@ -407,6 +438,14 @@ const styles = StyleSheet.create({
   titreSection: { fontSize: 13, fontWeight: '700', color: '#888', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 10 },
   enTeteCotisations: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   totalGroupe: { fontSize: 13, fontWeight: '700', color: couleurs.vertFonce },
+  rangeeFiltres: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
+  pastilleFiltre: {
+    borderWidth: 1, borderColor: couleurs.grisClair, borderRadius: 18,
+    paddingHorizontal: 12, paddingVertical: 6, backgroundColor: couleurs.blanc,
+  },
+  pastilleFiltreActive: { backgroundColor: couleurs.vertFonce, borderColor: couleurs.vertFonce },
+  textePastilleFiltre: { fontSize: 12, color: couleurs.grisTexte, fontWeight: '600' },
+  textePastilleFiltreActive: { color: couleurs.blanc },
   carteMembre: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: couleurs.blanc, borderRadius: 10, padding: 14, marginBottom: 8,
