@@ -13,15 +13,17 @@ export default function TableauDeBord() {
   useEffect(() => {
     async function charger() {
       try {
-        const [b, d, f] = await Promise.all([
+        const [b, d, f, r] = await Promise.all([
           appelerApi('/beneficiaires'),
           appelerApi('/demandes-financement'),
           appelerApi('/fond-rotatif'),
+          appelerApi('/remboursements/collectif/en-attente-responsable'),
         ]);
         setDonnees({
           beneficiaires: b.beneficiaires,
           demandes: d.demandes,
           fonds: f.fonds,
+          remboursementsEnAttente: r.remboursements,
         });
       } catch (err) {
         setErreur(err.message);
@@ -62,6 +64,10 @@ export default function TableauDeBord() {
           <span className="kpi-valeur">{soldeTotal.toLocaleString('fr-FR')}</span>
           <span className="kpi-label">FCFA disponibles (fonds)</span>
         </div>
+        <Link to="/remboursements-attente" className="carte-kpi carte-kpi-lien">
+          <span className="kpi-valeur">{donnees.remboursementsEnAttente.length}</span>
+          <span className="kpi-label">Remboursements en attente</span>
+        </Link>
       </div>
 
       <h2>Demandes nécessitant une action</h2>

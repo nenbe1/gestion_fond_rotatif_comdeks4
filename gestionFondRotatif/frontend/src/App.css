@@ -393,6 +393,8 @@ label {
    ============================================================ */
 .grille-cartes-kpi { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
 .carte-kpi { background: white; border-radius: var(--rayon); box-shadow: var(--ombre); padding: 1.2rem; display: flex; flex-direction: column; }
+.carte-kpi-lien { text-decoration: none; color: inherit; transition: box-shadow 0.15s ease; }
+.carte-kpi-lien:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
 .kpi-valeur { font-size: 1.8rem; font-weight: 700; color: var(--vert-fonce); }
 .kpi-label { font-size: 0.8rem; color: #888; margin-top: 0.2rem; }
 
