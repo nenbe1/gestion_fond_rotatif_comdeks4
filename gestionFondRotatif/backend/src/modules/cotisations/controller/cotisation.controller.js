@@ -77,6 +77,9 @@ async function telechargerRecu(req, res) {
     if (!(await verifierAccesBeneficiaire(req, cotisation))) {
       return res.status(403).json({ message: 'Vous ne pouvez consulter que vos propres cotisations.' });
     }
+    if (cotisation.annulee) {
+      return res.status(409).json({ message: 'Cette cotisation est annulée, son reçu ne peut plus être téléchargé.' });
+    }
     genererRecuCotisation(res, cotisation);
   } catch (erreur) {
     res.status(erreur.statusCode || 500).json({ message: erreur.message });
@@ -92,4 +95,30 @@ async function consulterTotal(req, res) {
   }
 }
 
-module.exports = { creer, rechercher, consulterParId, telechargerRecu, consulterTotal };
+/** PUT /api/cotisations/:id — modifie montant et/ou observation. Réservé au comité, comme la création. */
+async function modifier(req, res) {
+  try {
+    if (req.role !== 'MEMBRE_COMITE') {
+      return res.status(403).json({ message: 'Seul un membre du comité peut modifier une cotisation.' });
+    }
+    const cotisation = await cotisationService.modifier(req.params.id, req.body);
+    res.status(200).json({ cotisation });
+  } catch (erreur) {
+    res.status(erreur.statusCode || 500).json({ message: erreur.message });
+  }
+}
+
+/** PUT /api/cotisations/:id/annuler — annule (ne supprime jamais). Réservé au comité, comme la création. */
+async function annuler(req, res) {
+  try {
+    if (req.role !== 'MEMBRE_COMITE') {
+      return res.status(403).json({ message: 'Seul un membre du comité peut annuler une cotisation.' });
+    }
+    const cotisation = await cotisationService.annuler(req.params.id, req.body?.motif);
+    res.status(200).json({ cotisation });
+  } catch (erreur) {
+    res.status(erreur.statusCode || 500).json({ message: erreur.message });
+  }
+}
+
+module.exports = { creer, rechercher, consulterParId, telechargerRecu, consulterTotal, modifier, annuler };

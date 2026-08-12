@@ -19,6 +19,10 @@ export default function DetailGroupeScreen({ route, navigation }) {
   const [erreur, setErreur] = useState('');
   const [recuEnCours, setRecuEnCours] = useState(null); // id de la cotisation dont le reçu se télécharge
   const [filtrePeriode, setFiltrePeriode] = useState('tout'); // 'tout' | 'mois' | 'trimestre'
+  const [cotisationEnModification, setCotisationEnModification] = useState(null); // id ou null
+  const [montantModifie, setMontantModifie] = useState('');
+  const [observationModifiee, setObservationModifiee] = useState('');
+  const [actionEnCours, setActionEnCours] = useState(null); // id en cours de modification/annulation
 
   const [afficherAjout, setAfficherAjout] = useState(false);
   const [beneficiairesDisponibles, setBeneficiairesDisponibles] = useState([]);
@@ -188,6 +192,57 @@ export default function DetailGroupeScreen({ route, navigation }) {
     }
   }
 
+  function ouvrirModification(cotisation) {
+    setCotisationEnModification(cotisation.id);
+    setMontantModifie(String(cotisation.montant));
+    setObservationModifiee(cotisation.observation || '');
+  }
+
+  async function gererModification(cotisationId) {
+    if (!montantModifie || Number(montantModifie) <= 0) {
+      Alert.alert('Erreur', 'Le montant doit être un nombre positif.');
+      return;
+    }
+    setActionEnCours(cotisationId);
+    try {
+      await appelerApi(`/cotisations/${cotisationId}`, {
+        method: 'PUT',
+        body: { montant: Number(montantModifie), observation: observationModifiee.trim() || undefined },
+      });
+      setCotisationEnModification(null);
+      await charger();
+    } catch (err) {
+      Alert.alert('Erreur', err.message);
+    } finally {
+      setActionEnCours(null);
+    }
+  }
+
+  function gererAnnulation(cotisation) {
+    Alert.alert(
+      'Annuler cette cotisation ?',
+      `${cotisation.beneficiaireNom} ${cotisation.beneficiairePrenom} · ${Number(cotisation.montant).toLocaleString('fr-FR')} FCFA. Elle restera visible dans l'historique mais ne comptera plus dans les totaux.`,
+      [
+        { text: 'Non', style: 'cancel' },
+        {
+          text: 'Oui, annuler',
+          style: 'destructive',
+          onPress: async () => {
+            setActionEnCours(cotisation.id);
+            try {
+              await appelerApi(`/cotisations/${cotisation.id}/annuler`, { method: 'PUT' });
+              await charger();
+            } catch (err) {
+              Alert.alert('Erreur', err.message);
+            } finally {
+              setActionEnCours(null);
+            }
+          },
+        },
+      ]
+    );
+  }
+
   function dateLimitePourFiltre(filtre) {
     if (filtre === 'tout') return null;
     const limite = new Date();
@@ -261,6 +316,17 @@ export default function DetailGroupeScreen({ route, navigation }) {
                   placeholder="Montant (FCFA)"
                   keyboardType="numeric"
                 />
+                <View style={styles.rangeeMontantsRapides}>
+                  {[500, 1000, 2000, 5000].map((valeur) => (
+                    <TouchableOpacity
+                      key={valeur}
+                      style={styles.pastilleMontant}
+                      onPress={() => setMontantCotisation(String(valeur))}
+                    >
+                      <Text style={styles.textePastilleMontant}>{valeur.toLocaleString('fr-FR')}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
                 <TextInput
                   style={styles.champMontant}
                   value={observationCotisation}
@@ -380,20 +446,69 @@ export default function DetailGroupeScreen({ route, navigation }) {
           ) : (
             cotisationsFiltrees.map((c) => (
               <View key={c.id} style={styles.carteCotisation}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.nomMembre}>{c.beneficiaireNom} {c.beneficiairePrenom}</Text>
-                  <Text style={styles.infoCotisation}>{c.codeCotisation} · {c.dateVersement}</Text>
-                  <Text style={styles.montantCotisation}>{Number(c.montant).toLocaleString('fr-FR')} FCFA</Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.boutonPetit}
-                  onPress={() => telechargerRecu(c)}
-                  disabled={recuEnCours === c.id}
-                >
-                  {recuEnCours === c.id
-                    ? <ActivityIndicator size="small" color={couleurs.vertMoyen} />
-                    : <Text style={styles.texteBoutonPetit}>📄 Reçu</Text>}
-                </TouchableOpacity>
+                {cotisationEnModification === c.id ? (
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.nomMembre}>{c.beneficiaireNom} {c.beneficiairePrenom}</Text>
+                    <TextInput
+                      style={styles.champMontant}
+                      value={montantModifie}
+                      onChangeText={setMontantModifie}
+                      placeholder="Montant (FCFA)"
+                      keyboardType="numeric"
+                    />
+                    <TextInput
+                      style={styles.champMontant}
+                      value={observationModifiee}
+                      onChangeText={setObservationModifiee}
+                      placeholder="Observation (optionnel)"
+                    />
+                    <View style={styles.actionsFormulaire}>
+                      <TouchableOpacity style={styles.boutonAnnuler} onPress={() => setCotisationEnModification(null)}>
+                        <Text style={styles.texteBoutonAnnuler}>Annuler</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.boutonValider}
+                        onPress={() => gererModification(c.id)}
+                        disabled={actionEnCours === c.id}
+                      >
+                        {actionEnCours === c.id
+                          ? <ActivityIndicator color={couleurs.blanc} />
+                          : <Text style={styles.texteBoutonValider}>Enregistrer</Text>}
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : (
+                  <>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.nomMembre}>{c.beneficiaireNom} {c.beneficiairePrenom}</Text>
+                      <Text style={styles.infoCotisation}>{c.codeCotisation} · {c.dateVersement}</Text>
+                      <Text style={styles.montantCotisation}>{Number(c.montant).toLocaleString('fr-FR')} FCFA</Text>
+                    </View>
+                    <View style={{ gap: 6 }}>
+                      <TouchableOpacity
+                        style={styles.boutonPetit}
+                        onPress={() => telechargerRecu(c)}
+                        disabled={recuEnCours === c.id}
+                      >
+                        {recuEnCours === c.id
+                          ? <ActivityIndicator size="small" color={couleurs.vertMoyen} />
+                          : <Text style={styles.texteBoutonPetit}>📄 Reçu</Text>}
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.boutonPetit} onPress={() => ouvrirModification(c)}>
+                        <Text style={styles.texteBoutonPetit}>✏️ Modifier</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.boutonPetitDanger}
+                        onPress={() => gererAnnulation(c)}
+                        disabled={actionEnCours === c.id}
+                      >
+                        {actionEnCours === c.id
+                          ? <ActivityIndicator size="small" color={couleurs.brique} />
+                          : <Text style={styles.texteBoutonPetitDanger}>Annuler</Text>}
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                )}
               </View>
             ))
           )}
@@ -428,6 +543,12 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: couleurs.grisClair, borderRadius: 8,
     padding: 10, fontSize: 14, color: couleurs.grisTexte, marginTop: 10,
   },
+  rangeeMontantsRapides: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+  pastilleMontant: {
+    borderWidth: 1, borderColor: couleurs.orMil, borderRadius: 16,
+    paddingHorizontal: 12, paddingVertical: 5, backgroundColor: 'rgba(201,162,75,0.1)',
+  },
+  textePastilleMontant: { fontSize: 12, fontWeight: '600', color: couleurs.orMil },
   boutonAnnulerBloc: { marginTop: 10, alignItems: 'center', paddingVertical: 8 },
   texteBoutonAnnuler: { color: '#888', fontSize: 13 },
   actionsFormulaire: { flexDirection: 'row', gap: 10, marginTop: 12 },

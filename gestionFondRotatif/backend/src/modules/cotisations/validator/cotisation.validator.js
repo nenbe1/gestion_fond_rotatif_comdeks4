@@ -8,4 +8,13 @@ function validerCreation(req, res, next) {
   next();
 }
 
-module.exports = { validerCreation };
+/** Le bénéficiaire et le groupe ne sont jamais modifiables (voir cotisation.service.js) — seuls montant/observation le sont, tous deux optionnels ici. */
+function validerModification(req, res, next) {
+  const { montant } = req.body;
+  const erreurs = [];
+  if (montant !== undefined && Number(montant) <= 0) erreurs.push('Le montant doit être un nombre positif.');
+  if (erreurs.length > 0) return res.status(400).json({ erreurs });
+  next();
+}
+
+module.exports = { validerCreation, validerModification };

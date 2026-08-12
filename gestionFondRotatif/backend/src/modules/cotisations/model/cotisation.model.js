@@ -17,6 +17,8 @@ class Cotisation {
     this.enregistrePar = row.enregistre_par;
     this.enregistreParNom = row.enregistre_par_nom;
     this.enregistreParPrenom = row.enregistre_par_prenom;
+    this.annulee = !!row.annulee;
+    this.motifAnnulation = row.motif_annulation;
   }
 
   static fromRow(row) {

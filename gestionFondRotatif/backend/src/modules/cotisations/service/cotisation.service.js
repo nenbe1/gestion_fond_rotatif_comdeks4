@@ -74,8 +74,35 @@ async function consulterParId(id) {
   return Cotisation.fromRow(row);
 }
 
+/**
+ * Modifie le montant et/ou l'observation d'une cotisation. Le
+ * bénéficiaire et le groupe ne sont jamais modifiables (ce serait créer
+ * une autre cotisation, pas corriger celle-ci) — pour ça, il faut
+ * l'annuler et en créer une nouvelle.
+ */
+async function modifier(id, { montant, observation }) {
+  const existante = await consulterParId(id); // 404 si introuvable
+  if (existante.annulee) throw erreur('Cette cotisation est annulée, elle ne peut plus être modifiée.', 409);
+
+  if (montant !== undefined && Number(montant) <= 0) {
+    throw erreur('Le montant doit être positif.', 400);
+  }
+
+  const row = await cotisationRepository.update(id, { montant, observation });
+  return Cotisation.fromRow(row);
+}
+
+/** Annule une cotisation — jamais supprimée, conservée pour l'historique/l'audit (comme partout ailleurs dans l'app). */
+async function annuler(id, motif) {
+  const existante = await consulterParId(id); // 404 si introuvable
+  if (existante.annulee) throw erreur('Cette cotisation est déjà annulée.', 409);
+
+  const row = await cotisationRepository.annuler(id, motif);
+  return Cotisation.fromRow(row);
+}
+
 async function consulterTotalBeneficiaireGroupe(beneficiaireId, groupeId) {
   return cotisationRepository.sommeParBeneficiaireEtGroupe(beneficiaireId, groupeId);
 }
 
-module.exports = { creer, rechercher, consulterParId, consulterTotalBeneficiaireGroupe };
+module.exports = { creer, rechercher, consulterParId, modifier, annuler, consulterTotalBeneficiaireGroupe };

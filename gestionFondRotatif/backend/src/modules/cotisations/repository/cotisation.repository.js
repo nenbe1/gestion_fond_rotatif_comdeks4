@@ -17,12 +17,15 @@ const SELECT_BASE = `
 /**
  * Filtres tous optionnels et combinables : cantonId (comité, scope
  * automatique), groupeId, beneficiaireId, dateDebut/dateFin — pour la
- * fonction "recherche" du module.
+ * fonction "recherche" du module. Les cotisations annulées sont
+ * exclues par défaut (inclureAnnulees: true pour les revoir quand même,
+ * ex: écran d'historique complet côté Responsable plus tard).
  */
-async function rechercher({ cantonId, groupeId, beneficiaireId, dateDebut, dateFin } = {}) {
+async function rechercher({ cantonId, groupeId, beneficiaireId, dateDebut, dateFin, inclureAnnulees } = {}) {
   const conditions = [];
   const params = [];
 
+  if (!inclureAnnulees) { conditions.push('c.annulee = FALSE'); }
   if (cantonId) { conditions.push('g.canton_id = ?'); params.push(cantonId); }
   if (groupeId) { conditions.push('c.groupe_mmf_id = ?'); params.push(groupeId); }
   if (beneficiaireId) { conditions.push('c.beneficiaire_id = ?'); params.push(beneficiaireId); }
@@ -53,13 +56,32 @@ async function create({ code_cotisation, groupe_mmf_id, beneficiaire_id, montant
   return findById(result.insertId);
 }
 
+/** Modifie le montant et/ou l'observation d'une cotisation existante (jamais le bénéficiaire ni le groupe, qui définissent son identité). */
+async function update(id, { montant, observation }) {
+  const champs = [];
+  const params = [];
+  if (montant !== undefined) { champs.push('montant = ?'); params.push(montant); }
+  if (observation !== undefined) { champs.push('observation = ?'); params.push(observation || null); }
+  if (champs.length === 0) return findById(id);
+
+  params.push(id);
+  await db.query(`UPDATE cotisation SET ${champs.join(', ')} WHERE id = ?`, params);
+  return findById(id);
+}
+
+/** Annule une cotisation (conservée pour l'historique/l'audit, jamais supprimée — comme partout ailleurs dans l'app). */
+async function annuler(id, motif) {
+  await db.query('UPDATE cotisation SET annulee = TRUE, motif_annulation = ? WHERE id = ?', [motif || null, id]);
+  return findById(id);
+}
+
 /** Total cotisé par un bénéficiaire dans un groupe donné — utile pour son historique. */
 async function sommeParBeneficiaireEtGroupe(beneficiaireId, groupeId) {
   const [rows] = await db.query(
-    'SELECT COALESCE(SUM(montant), 0) AS total FROM cotisation WHERE beneficiaire_id = ? AND groupe_mmf_id = ?',
+    'SELECT COALESCE(SUM(montant), 0) AS total FROM cotisation WHERE beneficiaire_id = ? AND groupe_mmf_id = ? AND annulee = FALSE',
     [beneficiaireId, groupeId]
   );
   return Number(rows[0].total);
 }
 
-module.exports = { rechercher, findById, compterAnnee, create, sommeParBeneficiaireEtGroupe };
+module.exports = { rechercher, findById, compterAnnee, create, update, annuler, sommeParBeneficiaireEtGroupe };

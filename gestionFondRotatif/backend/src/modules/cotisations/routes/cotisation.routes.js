@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const controller = require('../controller/cotisation.controller');
-const { validerCreation } = require('../validator/cotisation.validator');
+const { validerCreation, validerModification } = require('../validator/cotisation.validator');
 const { verifierToken } = require('../../../middlewares/auth.middleware');
 
 router.use(verifierToken);
@@ -20,5 +20,7 @@ router.get('/', controller.rechercher);
 router.get('/:id', controller.consulterParId);
 router.get('/:id/recu', controller.telechargerRecu);
 router.get('/total/:beneficiaireId/:groupeId', controller.consulterTotal);
+router.put('/:id', reserverAuComite, validerModification, controller.modifier);
+router.put('/:id/annuler', reserverAuComite, controller.annuler);
 
 module.exports = router;

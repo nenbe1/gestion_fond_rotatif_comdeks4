@@ -420,6 +420,8 @@ CREATE TABLE cotisation (
   date_versement DATE NOT NULL,
   observation TEXT NULL,
   enregistre_par BIGINT NOT NULL,
+  annulee BOOLEAN NOT NULL DEFAULT FALSE,
+  motif_annulation VARCHAR(255) NULL,
   CONSTRAINT fk_cotisation_groupe FOREIGN KEY (groupe_mmf_id) REFERENCES groupe_mmf(id),
   CONSTRAINT fk_cotisation_beneficiaire FOREIGN KEY (beneficiaire_id) REFERENCES beneficiaire(id),
   CONSTRAINT fk_cotisation_membre_comite FOREIGN KEY (enregistre_par) REFERENCES membre_comite(id)
