@@ -64,10 +64,10 @@ export default function TableauDeBord() {
           <span className="kpi-valeur">{soldeTotal.toLocaleString('fr-FR')}</span>
           <span className="kpi-label">FCFA disponibles (fonds)</span>
         </div>
-        <Link to="/remboursements-attente" className="carte-kpi carte-kpi-lien">
+        <div className="carte-kpi">
           <span className="kpi-valeur">{donnees.remboursementsEnAttente.length}</span>
           <span className="kpi-label">Remboursements en attente</span>
-        </Link>
+        </div>
       </div>
 
       <h2>Demandes nécessitant une action</h2>
@@ -83,6 +83,25 @@ export default function TableauDeBord() {
                 <td>{d.objetDemande}</td>
                 <td><span className={`badge badge-${d.statutGlobal}`}>{d.statutGlobal}</span></td>
                 <td><Link to={`/demandes/${d.id}`}>Traiter →</Link></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <h2>Remboursements nécessitant une action</h2>
+      {donnees.remboursementsEnAttente.length === 0 ? (
+        <p className="vide">Aucun remboursement en attente actuellement.</p>
+      ) : (
+        <table className="tableau">
+          <thead><tr><th>Financement</th><th>Semaine</th><th>Montant</th><th></th></tr></thead>
+          <tbody>
+            {donnees.remboursementsEnAttente.map((r) => (
+              <tr key={r.id}>
+                <td>{r.codeFinancement}</td>
+                <td>Semaine {r.numeroSemaine}</td>
+                <td>{Number(r.montantPrevu).toLocaleString('fr-FR')} FCFA</td>
+                <td><Link to="/remboursements-attente">Traiter →</Link></td>
               </tr>
             ))}
           </tbody>

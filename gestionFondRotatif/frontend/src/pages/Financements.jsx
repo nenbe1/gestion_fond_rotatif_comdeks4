@@ -28,6 +28,7 @@ export default function Financements() {
   const [formulaireEdition, setFormulaireEdition] = useState({ programme_id: '', fond_rotatif_id: '', montant_financement: '' });
   const [envoiEditionEnCours, setEnvoiEditionEnCours] = useState(false);
   const [suppressionEnCoursId, setSuppressionEnCoursId] = useState(null);
+  const [recherche, setRecherche] = useState('');
 
   async function chargerTout() {
     setChargement(true);
@@ -92,9 +93,22 @@ export default function Financements() {
     }
   }
 
+  const financementsAffiches = financements.filter((f) => {
+    const q = recherche.trim().toLowerCase();
+    if (!q) return true;
+    return `${f.codeFinancement} ${f.programmeNom} ${f.fondLibelle}`.toLowerCase().includes(q);
+  });
+
   return (
     <div>
       <h1>Financements</h1>
+      <input
+        type="text"
+        className="champ-recherche"
+        placeholder="Rechercher (code, programme, fonds)..."
+        value={recherche}
+        onChange={(e) => setRecherche(e.target.value)}
+      />
 
       {erreur && <p className="message-erreur">{erreur}</p>}
 
@@ -106,7 +120,7 @@ export default function Financements() {
             <tr><th>Code</th><th>Montant</th><th>Programme</th><th>Fonds</th><th>Statut</th><th></th></tr>
           </thead>
           <tbody>
-            {financements.map((f) => (
+            {financementsAffiches.map((f) => (
               <tr key={f.id}>
                 {financementEnEditionId === f.id ? (
                   <>
@@ -165,8 +179,8 @@ export default function Financements() {
                 )}
               </tr>
             ))}
-            {financements.length === 0 && (
-              <tr><td colSpan="6" className="vide">Aucun financement pour l'instant.</td></tr>
+            {financementsAffiches.length === 0 && (
+              <tr><td colSpan="6" className="vide">Aucun financement ne correspond à cette recherche.</td></tr>
             )}
           </tbody>
         </table>

@@ -17,6 +17,7 @@ export default function Beneficiaires() {
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState('');
   const [cantonSelectionne, setCantonSelectionne] = useState('');
+  const [recherche, setRecherche] = useState('');
 
   const [beneficiaireEnEditionId, setBeneficiaireEnEditionId] = useState(null);
   const [formulaireEdition, setFormulaireEdition] = useState({ age_estime: '', activite: '' });
@@ -41,9 +42,13 @@ export default function Beneficiaires() {
 
   useEffect(() => { charger(); }, []);
 
-  const beneficiairesAffiches = cantonSelectionne
-    ? beneficiaires.filter((b) => String(b.cantonId) === String(cantonSelectionne))
-    : beneficiaires;
+  const beneficiairesAffiches = beneficiaires
+    .filter((b) => !cantonSelectionne || String(b.cantonId) === String(cantonSelectionne))
+    .filter((b) => {
+      const q = recherche.trim().toLowerCase();
+      if (!q) return true;
+      return `${b.nom} ${b.prenom} ${b.telephone}`.toLowerCase().includes(q);
+    });
 
   function ouvrirEdition(b) {
     setBeneficiaireEnEditionId(b.id);
@@ -86,13 +91,22 @@ export default function Beneficiaires() {
     <div>
       <div className="entete-page">
         <h1>Bénéficiaires</h1>
-        <label>
-          Canton
-          <select value={cantonSelectionne} onChange={(e) => setCantonSelectionne(e.target.value)}>
-            <option value="">Tous les cantons</option>
-            {cantons.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
-          </select>
-        </label>
+        <div className="groupe-filtres">
+          <input
+            type="text"
+            className="champ-recherche"
+            placeholder="Rechercher (nom, prénom, téléphone)..."
+            value={recherche}
+            onChange={(e) => setRecherche(e.target.value)}
+          />
+          <label>
+            Canton
+            <select value={cantonSelectionne} onChange={(e) => setCantonSelectionne(e.target.value)}>
+              <option value="">Tous les cantons</option>
+              {cantons.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+            </select>
+          </label>
+        </div>
       </div>
 
       {erreur && <p className="message-erreur">{erreur}</p>}
@@ -161,7 +175,7 @@ export default function Beneficiaires() {
               </tr>
             ))}
             {beneficiairesAffiches.length === 0 && (
-              <tr><td colSpan="8" className="vide">Aucun bénéficiaire pour ce canton.</td></tr>
+              <tr><td colSpan="8" className="vide">Aucun bénéficiaire ne correspond à ces critères.</td></tr>
             )}
           </tbody>
         </table>
