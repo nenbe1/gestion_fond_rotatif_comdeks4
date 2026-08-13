@@ -341,8 +341,8 @@ label {
   font-size: 0.75rem;
   font-weight: 700;
 }
-.badge-EnAttente, .badge-EnCours, .badge-EnAttenteResponsable, .badge-Nouveau { background: #eef1f6; color: var(--bleu-attente); }
-.badge-Approuve, .badge-Validee, .badge-Solde { background: #e6f2ea; color: var(--vert-moyen); }
+.badge-EnAttente, .badge-EnCours, .badge-EnAttenteResponsable, .badge-Nouveau, .badge-Planifiee { background: #eef1f6; color: var(--bleu-attente); }
+.badge-Approuve, .badge-Validee, .badge-Solde, .badge-Cloturee { background: #e6f2ea; color: var(--vert-moyen); }
 .badge-Rejete, .badge-Rejetee { background: #fbe9e6; color: var(--brique); }
 .badge-RemboursementEnCours { background: #fdf3e0; color: var(--or-mil); }
 

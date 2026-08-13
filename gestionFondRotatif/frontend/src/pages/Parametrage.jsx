@@ -11,7 +11,7 @@ import appelerApi from '../api/client';
  * son propre usage ailleurs — pas touché ici.
  */
 export default function Parametrage() {
-  const [onglet, setOnglet] = useState('cantons'); // 'cantons' | 'fonctions' | 'parametres'
+  const [onglet, setOnglet] = useState('cantons'); // 'cantons' | 'fonctions' | 'parametres' | 'programmes' | 'vagues' | 'fonds'
 
   return (
     <div>
@@ -19,12 +19,20 @@ export default function Parametrage() {
 
       <div className="onglets">
         <button className={onglet === 'cantons' ? 'onglet-actif' : 'onglet'} onClick={() => setOnglet('cantons')}>Cantons</button>
+        <button className={onglet === 'domaines' ? 'onglet-actif' : 'onglet'} onClick={() => setOnglet('domaines')}>Domaines</button>
         <button className={onglet === 'fonctions' ? 'onglet-actif' : 'onglet'} onClick={() => setOnglet('fonctions')}>Fonctions & habilitations</button>
+        <button className={onglet === 'programmes' ? 'onglet-actif' : 'onglet'} onClick={() => setOnglet('programmes')}>Programmes</button>
+        <button className={onglet === 'vagues' ? 'onglet-actif' : 'onglet'} onClick={() => setOnglet('vagues')}>Vagues</button>
+        <button className={onglet === 'fonds' ? 'onglet-actif' : 'onglet'} onClick={() => setOnglet('fonds')}>Fonds Rotatif</button>
         <button className={onglet === 'parametres' ? 'onglet-actif' : 'onglet'} onClick={() => setOnglet('parametres')}>Paramètres système</button>
       </div>
 
       {onglet === 'cantons' && <OngletCantons />}
+      {onglet === 'domaines' && <OngletDomaines />}
       {onglet === 'fonctions' && <OngletFonctions />}
+      {onglet === 'programmes' && <OngletProgrammes />}
+      {onglet === 'vagues' && <OngletVagues />}
+      {onglet === 'fonds' && <OngletFonds />}
       {onglet === 'parametres' && <OngletParametres />}
     </div>
   );
@@ -401,6 +409,386 @@ function OngletFonctions() {
 }
 
 
+function OngletDomaines() {
+  const [domaines, setDomaines] = useState([]);
+  const [chargement, setChargement] = useState(true);
+  const [erreur, setErreur] = useState('');
+  const [afficherFormulaire, setAfficherFormulaire] = useState(false);
+  const [formulaire, setFormulaire] = useState({ nom: '', description: '' });
+  const [envoiEnCours, setEnvoiEnCours] = useState(false);
+
+  async function charger() {
+    setChargement(true);
+    try {
+      const donnees = await appelerApi('/domaines');
+      setDomaines(donnees.domaines);
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setChargement(false);
+    }
+  }
+
+  useEffect(() => { charger(); }, []);
+
+  async function gererCreation(e) {
+    e.preventDefault();
+    setErreur('');
+    setEnvoiEnCours(true);
+    try {
+      await appelerApi('/domaines', { method: 'POST', body: formulaire });
+      setFormulaire({ nom: '', description: '' });
+      setAfficherFormulaire(false);
+      await charger();
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setEnvoiEnCours(false);
+    }
+  }
+
+  return (
+    <div>
+      <div className="entete-page">
+        <h2>Domaines</h2>
+        <button onClick={() => setAfficherFormulaire(!afficherFormulaire)}>{afficherFormulaire ? 'Annuler' : '+ Nouveau domaine'}</button>
+      </div>
+      <p className="note">Le secteur d'activité d'une demande de financement (ex : Maïs, Mil, Élevage) — c'est aussi ce qui définit le périmètre d'accès d'une Autorité par domaine.</p>
+
+      {erreur && <p className="message-erreur">{erreur}</p>}
+
+      {afficherFormulaire && (
+        <form className="formulaire-carte" onSubmit={gererCreation}>
+          <div className="grille-formulaire">
+            <label>Nom <input value={formulaire.nom} onChange={(e) => setFormulaire({ ...formulaire, nom: e.target.value })} required /></label>
+            <label className="pleine-largeur">Description (optionnel) <input value={formulaire.description} onChange={(e) => setFormulaire({ ...formulaire, description: e.target.value })} /></label>
+          </div>
+          <button type="submit" disabled={envoiEnCours}>{envoiEnCours ? 'Création...' : 'Créer le domaine'}</button>
+        </form>
+      )}
+
+      {chargement ? <p>Chargement...</p> : (
+        <table className="tableau">
+          <thead><tr><th>Nom</th><th>Description</th></tr></thead>
+          <tbody>
+            {domaines.map((d) => (
+              <tr key={d.id}>
+                <td>{d.nom}</td>
+                <td>{d.description || '—'}</td>
+              </tr>
+            ))}
+            {domaines.length === 0 && <tr><td colSpan="2" className="vide">Aucun domaine pour l'instant.</td></tr>}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+function OngletProgrammes() {
+  const [programmes, setProgrammes] = useState([]);
+  const [chargement, setChargement] = useState(true);
+  const [erreur, setErreur] = useState('');
+  const [afficherFormulaire, setAfficherFormulaire] = useState(false);
+  const [formulaire, setFormulaire] = useState({ nom: '', description: '' });
+  const [envoiEnCours, setEnvoiEnCours] = useState(false);
+
+  async function charger() {
+    setChargement(true);
+    try {
+      const donnees = await appelerApi('/programmes');
+      setProgrammes(donnees.programmes);
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setChargement(false);
+    }
+  }
+
+  useEffect(() => { charger(); }, []);
+
+  async function gererCreation(e) {
+    e.preventDefault();
+    setErreur('');
+    setEnvoiEnCours(true);
+    try {
+      await appelerApi('/programmes', { method: 'POST', body: formulaire });
+      setFormulaire({ nom: '', description: '' });
+      setAfficherFormulaire(false);
+      await charger();
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setEnvoiEnCours(false);
+    }
+  }
+
+  return (
+    <div>
+      <div className="entete-page">
+        <h2>Programmes</h2>
+        <button onClick={() => setAfficherFormulaire(!afficherFormulaire)}>{afficherFormulaire ? 'Annuler' : '+ Nouveau programme'}</button>
+      </div>
+      <p className="note">Le bailleur/programme d'origine des fonds — chaque financement en précise un.</p>
+
+      {erreur && <p className="message-erreur">{erreur}</p>}
+
+      {afficherFormulaire && (
+        <form className="formulaire-carte" onSubmit={gererCreation}>
+          <div className="grille-formulaire">
+            <label>Nom <input value={formulaire.nom} onChange={(e) => setFormulaire({ ...formulaire, nom: e.target.value })} required /></label>
+            <label className="pleine-largeur">Description (optionnel) <input value={formulaire.description} onChange={(e) => setFormulaire({ ...formulaire, description: e.target.value })} /></label>
+          </div>
+          <button type="submit" disabled={envoiEnCours}>{envoiEnCours ? 'Création...' : 'Créer le programme'}</button>
+        </form>
+      )}
+
+      {chargement ? <p>Chargement...</p> : (
+        <table className="tableau">
+          <thead><tr><th>Nom</th><th>Description</th></tr></thead>
+          <tbody>
+            {programmes.map((p) => (
+              <tr key={p.id}>
+                <td>{p.nom}</td>
+                <td>{p.description || '—'}</td>
+              </tr>
+            ))}
+            {programmes.length === 0 && <tr><td colSpan="2" className="vide">Aucun programme pour l'instant.</td></tr>}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+function OngletVagues() {
+  const [vagues, setVagues] = useState([]);
+  const [chargement, setChargement] = useState(true);
+  const [erreur, setErreur] = useState('');
+  const [afficherFormulaire, setAfficherFormulaire] = useState(false);
+  const [formulaire, setFormulaire] = useState({ nom: '', description: '', date_debut: '', date_fin: '', budget_prevu: '' });
+  const [envoiEnCours, setEnvoiEnCours] = useState(false);
+  const [actionEnCoursId, setActionEnCoursId] = useState(null);
+
+  async function charger() {
+    setChargement(true);
+    try {
+      const donnees = await appelerApi('/vagues');
+      setVagues(donnees.vagues);
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setChargement(false);
+    }
+  }
+
+  useEffect(() => { charger(); }, []);
+
+  async function gererCreation(e) {
+    e.preventDefault();
+    setErreur('');
+    setEnvoiEnCours(true);
+    try {
+      await appelerApi('/vagues', { method: 'POST', body: formulaire });
+      setFormulaire({ nom: '', description: '', date_debut: '', date_fin: '', budget_prevu: '' });
+      setAfficherFormulaire(false);
+      await charger();
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setEnvoiEnCours(false);
+    }
+  }
+
+  async function gererChangementStatut(v, action) {
+    setErreur('');
+    setActionEnCoursId(v.id);
+    try {
+      await appelerApi(`/vagues/${v.id}/${action}`, { method: 'PUT' });
+      await charger();
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setActionEnCoursId(null);
+    }
+  }
+
+  return (
+    <div>
+      <div className="entete-page">
+        <h2>Vagues</h2>
+        <button onClick={() => setAfficherFormulaire(!afficherFormulaire)}>{afficherFormulaire ? 'Annuler' : '+ Nouvelle vague'}</button>
+      </div>
+      <p className="note">Une campagne de soumission de demandes, avec une période et un budget prévisionnel. Le code (ex: V2026-01) est généré automatiquement.</p>
+
+      {erreur && <p className="message-erreur">{erreur}</p>}
+
+      {afficherFormulaire && (
+        <form className="formulaire-carte" onSubmit={gererCreation}>
+          <div className="grille-formulaire">
+            <label>Nom <input value={formulaire.nom} onChange={(e) => setFormulaire({ ...formulaire, nom: e.target.value })} required /></label>
+            <label>Date de début <input type="date" value={formulaire.date_debut} onChange={(e) => setFormulaire({ ...formulaire, date_debut: e.target.value })} required /></label>
+            <label>Date de fin <input type="date" value={formulaire.date_fin} onChange={(e) => setFormulaire({ ...formulaire, date_fin: e.target.value })} required /></label>
+            <label>Budget prévu (optionnel) <input type="number" step="any" value={formulaire.budget_prevu} onChange={(e) => setFormulaire({ ...formulaire, budget_prevu: e.target.value })} /></label>
+            <label className="pleine-largeur">Description (optionnel) <input value={formulaire.description} onChange={(e) => setFormulaire({ ...formulaire, description: e.target.value })} /></label>
+          </div>
+          <button type="submit" disabled={envoiEnCours}>{envoiEnCours ? 'Création...' : 'Créer la vague'}</button>
+        </form>
+      )}
+
+      {chargement ? <p>Chargement...</p> : (
+        <table className="tableau">
+          <thead><tr><th>Code</th><th>Nom</th><th>Période</th><th>Budget prévu</th><th>Statut</th><th></th></tr></thead>
+          <tbody>
+            {vagues.map((v) => (
+              <tr key={v.id}>
+                <td>{v.codeVague}</td>
+                <td>{v.nom}</td>
+                <td>{new Date(v.dateDebut).toLocaleDateString('fr-FR')} → {new Date(v.dateFin).toLocaleDateString('fr-FR')}</td>
+                <td>{v.budgetPrevu ? `${Number(v.budgetPrevu).toLocaleString('fr-FR')} FCFA` : '—'}</td>
+                <td><span className={`badge badge-${v.statut}`}>{v.statut}</span></td>
+                <td className="actions-ligne">
+                  {v.statut === 'Planifiee' && (
+                    <button disabled={actionEnCoursId === v.id} onClick={() => gererChangementStatut(v, 'demarrer')}>
+                      {actionEnCoursId === v.id ? '...' : 'Démarrer'}
+                    </button>
+                  )}
+                  {v.statut === 'EnCours' && (
+                    <button className="bouton-danger" disabled={actionEnCoursId === v.id} onClick={() => gererChangementStatut(v, 'cloturer')}>
+                      {actionEnCoursId === v.id ? '...' : 'Clôturer'}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {vagues.length === 0 && <tr><td colSpan="6" className="vide">Aucune vague pour l'instant.</td></tr>}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+function OngletFonds() {
+  const [fonds, setFonds] = useState([]);
+  const [chargement, setChargement] = useState(true);
+  const [erreur, setErreur] = useState('');
+  const [afficherFormulaire, setAfficherFormulaire] = useState(false);
+  const [formulaire, setFormulaire] = useState({ code_fond: '', libelle_fond: '' });
+  const [envoiEnCours, setEnvoiEnCours] = useState(false);
+  const [fondEnAlimentationId, setFondEnAlimentationId] = useState(null);
+  const [montantAlimentation, setMontantAlimentation] = useState('');
+
+  async function charger() {
+    setChargement(true);
+    try {
+      const donnees = await appelerApi('/fond-rotatif');
+      setFonds(donnees.fonds);
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setChargement(false);
+    }
+  }
+
+  useEffect(() => { charger(); }, []);
+
+  async function gererCreation(e) {
+    e.preventDefault();
+    setErreur('');
+    setEnvoiEnCours(true);
+    try {
+      await appelerApi('/fond-rotatif', { method: 'POST', body: formulaire });
+      setFormulaire({ code_fond: '', libelle_fond: '' });
+      setAfficherFormulaire(false);
+      await charger();
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setEnvoiEnCours(false);
+    }
+  }
+
+  function ouvrirAlimentation(f) {
+    setFondEnAlimentationId(f.id);
+    setMontantAlimentation('');
+  }
+
+  async function gererAlimentation(f) {
+    if (!montantAlimentation || Number(montantAlimentation) <= 0) {
+      setErreur('Le montant doit être un nombre positif.');
+      return;
+    }
+    setErreur('');
+    setEnvoiEnCours(true);
+    try {
+      await appelerApi(`/fond-rotatif/${f.id}/alimenter`, { method: 'PUT', body: { montant: Number(montantAlimentation) } });
+      setFondEnAlimentationId(null);
+      await charger();
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setEnvoiEnCours(false);
+    }
+  }
+
+  return (
+    <div>
+      <div className="entete-page">
+        <h2>Fonds Rotatif</h2>
+        <button onClick={() => setAfficherFormulaire(!afficherFormulaire)}>{afficherFormulaire ? 'Annuler' : '+ Nouveau fonds'}</button>
+      </div>
+      <p className="note">Le solde disponible pour les financements — débité automatiquement à chaque décaissement, crédité automatiquement par les remboursements collectifs approuvés.</p>
+
+      {erreur && <p className="message-erreur">{erreur}</p>}
+
+      {afficherFormulaire && (
+        <form className="formulaire-carte" onSubmit={gererCreation}>
+          <div className="grille-formulaire">
+            <label>Code <input value={formulaire.code_fond} onChange={(e) => setFormulaire({ ...formulaire, code_fond: e.target.value })} placeholder="ex: FR-PRINCIPAL" required /></label>
+            <label>Libellé <input value={formulaire.libelle_fond} onChange={(e) => setFormulaire({ ...formulaire, libelle_fond: e.target.value })} required /></label>
+          </div>
+          <button type="submit" disabled={envoiEnCours}>{envoiEnCours ? 'Création...' : 'Créer le fonds'}</button>
+        </form>
+      )}
+
+      {chargement ? <p>Chargement...</p> : (
+        <table className="tableau">
+          <thead><tr><th>Code</th><th>Libellé</th><th>Solde disponible</th><th></th></tr></thead>
+          <tbody>
+            {fonds.map((f) => (
+              <tr key={f.id}>
+                <td>{f.codeFond}</td>
+                <td>{f.libelleFond}</td>
+                <td>{Number(f.montantFond).toLocaleString('fr-FR')} FCFA</td>
+                <td className="actions-ligne">
+                  {fondEnAlimentationId === f.id ? (
+                    <>
+                      <input
+                        type="number"
+                        step="any"
+                        placeholder="Montant"
+                        value={montantAlimentation}
+                        onChange={(e) => setMontantAlimentation(e.target.value)}
+                        style={{ width: '110px' }}
+                      />
+                      <button disabled={envoiEnCours} onClick={() => gererAlimentation(f)}>{envoiEnCours ? '...' : 'Confirmer'}</button>
+                      <button type="button" onClick={() => setFondEnAlimentationId(null)}>Annuler</button>
+                    </>
+                  ) : (
+                    <button className="bouton-petit" onClick={() => ouvrirAlimentation(f)}>+ Alimenter</button>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {fonds.length === 0 && <tr><td colSpan="4" className="vide">Aucun fonds pour l'instant.</td></tr>}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 function OngletParametres() {
   const [parametres, setParametres] = useState([]);
   const [chargement, setChargement] = useState(true);
@@ -410,6 +798,16 @@ function OngletParametres() {
   const [envoiEnCours, setEnvoiEnCours] = useState(false);
   const [afficherFormulaire, setAfficherFormulaire] = useState(false);
   const [formulaire, setFormulaire] = useState({ cle: '', valeur: '', description: '' });
+
+  // Seules les clés listées ici sont réellement lues ailleurs dans le
+  // code (voir parametre.validator.js côté backend, qui applique la
+  // même liste) — créer une clé hors de cette liste ne servirait à
+  // rien, donc on ne laisse plus taper n'importe quoi.
+  const CLES_CONNUES = [
+    { cle: 'taux_majoration_remboursement', libelle: 'Taux de majoration des remboursements (%)' },
+  ];
+  const clesDejaUtilisees = parametres.map((p) => p.cle);
+  const clesDisponibles = CLES_CONNUES.filter((k) => !clesDejaUtilisees.includes(k.cle));
 
   async function charger() {
     setChargement(true);
@@ -464,22 +862,27 @@ function OngletParametres() {
     <div>
       <div className="entete-page">
         <h2>Paramètres système</h2>
-        <button onClick={() => setAfficherFormulaire(!afficherFormulaire)}>{afficherFormulaire ? 'Annuler' : '+ Nouveau paramètre'}</button>
+        {clesDisponibles.length > 0 && (
+          <button onClick={() => setAfficherFormulaire(!afficherFormulaire)}>{afficherFormulaire ? 'Annuler' : '+ Nouveau paramètre'}</button>
+        )}
       </div>
       <p className="note">Réglages globaux utilisés ailleurs dans l'application (ex : taux de majoration des remboursements).</p>
 
       {erreur && <p className="message-erreur">{erreur}</p>}
 
-      {afficherFormulaire && (
+      {afficherFormulaire && clesDisponibles.length > 0 && (
         <form className="formulaire-carte" onSubmit={gererCreation}>
           <div className="grille-formulaire">
             <label>
-              Clé <input
+              Clé
+              <select
                 value={formulaire.cle}
                 onChange={(e) => setFormulaire({ ...formulaire, cle: e.target.value })}
-                placeholder="ex: taux_majoration_remboursement"
                 required
-              />
+              >
+                <option value="" disabled>Choisir...</option>
+                {clesDisponibles.map((k) => <option key={k.cle} value={k.cle}>{k.libelle}</option>)}
+              </select>
             </label>
             <label>Valeur <input value={formulaire.valeur} onChange={(e) => setFormulaire({ ...formulaire, valeur: e.target.value })} required /></label>
             <label className="pleine-largeur">Description (optionnel) <input value={formulaire.description} onChange={(e) => setFormulaire({ ...formulaire, description: e.target.value })} /></label>
