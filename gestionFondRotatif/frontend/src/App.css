@@ -71,6 +71,8 @@ button.bouton-icone.bouton-danger { background: var(--brique); }
   gap: 0.5rem;
   flex-wrap: wrap;
 }
+.actions-ligne-empilee { flex-direction: column; align-items: stretch; gap: 0.4rem; }
+.bouton-pleine-largeur { width: 100%; }
 
 input, select, textarea {
   width: 100%;

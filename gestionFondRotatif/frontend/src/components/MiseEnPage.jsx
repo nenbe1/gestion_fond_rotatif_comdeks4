@@ -57,6 +57,7 @@ export default function MiseEnPage() {
   const [menuMobileOuvert, setMenuMobileOuvert] = useState(false);
 
   function gererDeconnexion() {
+    if (!window.confirm('Voulez-vous vraiment vous déconnecter ?')) return;
     deconnecter();
     navigate('/connexion');
   }

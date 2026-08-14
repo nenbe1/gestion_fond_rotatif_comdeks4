@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
   texteOeil: { fontSize: 18 },
 
   banniereErreur: {
-    backgroundColor: '#fbe9e6',
+    backgroundColor: couleurs.briqueClair,
     borderRadius: 10,
     padding: 12,
     marginTop: 16,

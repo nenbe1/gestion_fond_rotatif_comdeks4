@@ -1,6 +1,7 @@
 import { useEffect, useState, Fragment } from 'react';
 import appelerApi from '../api/client';
 import SelecteurPositionCarte from '../components/SelecteurPositionCarte';
+import CarteCantons from '../components/CarteCantons';
 
 /**
  * Page Paramétrage — gestion centralisée des cantons et des fonctions
@@ -51,6 +52,7 @@ function OngletCantons() {
   const [basculeEnCoursId, setBasculeEnCoursId] = useState(null);
   const [carteVisibleCreation, setCarteVisibleCreation] = useState(false);
   const [carteVisibleEditionId, setCarteVisibleEditionId] = useState(null);
+  const [vue, setVue] = useState('liste'); // 'liste' | 'carte'
 
   async function charger() {
     setChargement(true);
@@ -120,7 +122,12 @@ function OngletCantons() {
     <div>
       <div className="entete-page">
         <h2>Cantons</h2>
-        <button onClick={() => setAfficherFormulaire(!afficherFormulaire)}>{afficherFormulaire ? 'Annuler' : '+ Nouveau canton'}</button>
+        <div className="groupe-filtres">
+          <button className="bouton-secondaire" onClick={() => setVue(vue === 'liste' ? 'carte' : 'liste')}>
+            {vue === 'liste' ? '🗺️ Voir la carte d\'ensemble' : '📋 Voir la liste'}
+          </button>
+          <button onClick={() => setAfficherFormulaire(!afficherFormulaire)}>{afficherFormulaire ? 'Annuler' : '+ Nouveau canton'}</button>
+        </div>
       </div>
 
       {erreur && <p className="message-erreur">{erreur}</p>}
@@ -146,7 +153,16 @@ function OngletCantons() {
         </form>
       )}
 
-      {chargement ? <p>Chargement...</p> : (
+      {chargement ? <p>Chargement...</p> : vue === 'carte' ? (
+        <>
+          <CarteCantons cantons={cantons} />
+          {cantons.some((c) => !c.latitude || !c.longitude) && (
+            <p className="note-recherche" style={{ marginTop: '0.6rem' }}>
+              {cantons.filter((c) => !c.latitude || !c.longitude).length} canton(s) sans position enregistrée ne sont pas affichés sur la carte.
+            </p>
+          )}
+        </>
+      ) : (
         <table className="tableau">
           <thead><tr><th>Nom</th><th>Latitude</th><th>Longitude</th><th>Actif</th><th></th></tr></thead>
           <tbody>
@@ -159,17 +175,19 @@ function OngletCantons() {
                       <td><input type="number" step="any" value={formulaireEdition.latitude} onChange={(e) => setFormulaireEdition({ ...formulaireEdition, latitude: e.target.value })} /></td>
                       <td><input type="number" step="any" value={formulaireEdition.longitude} onChange={(e) => setFormulaireEdition({ ...formulaireEdition, longitude: e.target.value })} /></td>
                       <td>{c.actif ? '✅' : '❌'}</td>
-                      <td className="actions-ligne">
+                      <td className="actions-ligne actions-ligne-empilee">
                         <button
                           type="button"
-                          className="bouton-icone"
+                          className="bouton-icone bouton-pleine-largeur"
                           title="Choisir sur une carte"
                           onClick={() => setCarteVisibleEditionId(carteVisibleEditionId === c.id ? null : c.id)}
                         >
-                          🗺️
+                          🗺️ Carte
                         </button>
-                        <button disabled={envoiEnCours} onClick={() => gererEnregistrementEdition(c)}>{envoiEnCours ? '...' : 'Enregistrer'}</button>
-                        <button type="button" onClick={() => { setEnEditionId(null); setCarteVisibleEditionId(null); }}>Annuler</button>
+                        <div className="actions-ligne">
+                          <button disabled={envoiEnCours} onClick={() => gererEnregistrementEdition(c)}>{envoiEnCours ? '...' : 'Enregistrer'}</button>
+                          <button type="button" onClick={() => { setEnEditionId(null); setCarteVisibleEditionId(null); }}>Annuler</button>
+                        </div>
                       </td>
                     </>
                   ) : (

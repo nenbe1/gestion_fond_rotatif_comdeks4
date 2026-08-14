@@ -11,15 +11,6 @@ const LIBELLE_STATUT = {
   Solde: 'Soldé',
 };
 
-/**
- * Mon compte (bénéficiaire) — écran d'accueil.
- *
- * CORRECTION (design) : même bandeau coloré que ConnexionScreen et le
- * tableau de bord du comité (au lieu d'un simple en-tête plat), et le
- * lien "Déconnexion" devient un bouton icône rond avec confirmation.
- * Les cartes-statistiques chevauchent légèrement le bandeau, comme la
- * carte de connexion.
- */
 export default function MonCompteScreen({ navigation }) {
   const [compte, setCompte] = useState(null);
   const [chargement, setChargement] = useState(true);
@@ -38,8 +29,6 @@ export default function MonCompteScreen({ navigation }) {
     }
   }, []);
 
-  // Recharge à chaque retour sur l'écran (ex: après qu'un nouveau
-  // financement lui ait été attribué entre-temps par la Responsable).
   useFocusEffect(useCallback(() => { charger(); }, [charger]));
 
   function confirmerDeconnexion() {
@@ -49,10 +38,6 @@ export default function MonCompteScreen({ navigation }) {
     ]);
   }
 
-  // CORRECTION : resteAPayer vient maintenant directement du backend
-  // (calcul exact par financement, avec majoration + double validation
-  // des remboursements confirmés), au lieu d'un calcul approximatif fait
-  // ici qui ignorait la distinction "enregistré" / "confirmé".
   const situation = compte?.situation;
   const resteDu = situation?.resteAPayer ?? 0;
 
@@ -149,9 +134,9 @@ export default function MonCompteScreen({ navigation }) {
 }
 
 function styleBadge(statut) {
-  if (statut === 'Solde') return { backgroundColor: '#e6f2ea' };
-  if (statut === 'RemboursementEnCours') return { backgroundColor: '#fdf3e0' };
-  return { backgroundColor: '#eef1f6' };
+  if (statut === 'Solde') return { backgroundColor: couleurs.vertMoyenClair };
+  if (statut === 'RemboursementEnCours') return { backgroundColor: couleurs.orMilClair };
+  return { backgroundColor: couleurs.bleuAttenteClair };
 }
 
 const styles = StyleSheet.create({
@@ -191,7 +176,6 @@ const styles = StyleSheet.create({
   valeurStat: { fontSize: 16, fontWeight: '700', color: couleurs.vertFonce, textAlign: 'center' },
   libelleStat: { fontSize: 11, color: '#888', textAlign: 'center', marginTop: 4 },
 
-  sousTitreListe: { fontSize: 13, fontWeight: '700', color: '#888', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 10 },
   lienCotisations: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: couleurs.blanc, borderRadius: 14, padding: 16, marginBottom: 18,
@@ -199,6 +183,8 @@ const styles = StyleSheet.create({
   },
   lienCotisationsTexte: { fontSize: 14, fontWeight: '600', color: couleurs.grisTexte },
   lienCotisationsFleche: { fontSize: 20, color: '#bbb' },
+
+  sousTitreListe: { fontSize: 13, fontWeight: '700', color: '#888', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 10 },
   ligneFinancement: {
     flexDirection: 'row', justifyContent: 'space-between',
     backgroundColor: couleurs.blanc, borderRadius: 14, padding: 14,

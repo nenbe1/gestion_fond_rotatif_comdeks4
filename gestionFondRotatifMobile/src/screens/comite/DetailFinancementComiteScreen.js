@@ -349,7 +349,7 @@ const styles = StyleSheet.create({
   texteBoutonRembourser: { color: couleurs.vertMoyen, fontSize: 12, fontWeight: '600' },
   vide: { textAlign: 'center', color: '#888', marginTop: 10 },
 
-  blocEnAttente: { backgroundColor: '#fdf3e0', borderRadius: 8, padding: 10, marginTop: 10 },
+  blocEnAttente: { backgroundColor: couleurs.orMilClair, borderRadius: 8, padding: 10, marginTop: 10 },
   titreEnAttente: { fontSize: 11, fontWeight: '700', color: couleurs.orMil, textTransform: 'uppercase', marginBottom: 6 },
   ligneEnAttente: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   montantEnAttente: { fontWeight: '600', color: couleurs.grisTexte },
