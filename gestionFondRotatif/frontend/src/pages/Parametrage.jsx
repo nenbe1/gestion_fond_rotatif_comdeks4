@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Fragment } from 'react';
 import appelerApi from '../api/client';
+import SelecteurPositionCarte from '../components/SelecteurPositionCarte';
 
 /**
  * Page Paramétrage — gestion centralisée des cantons et des fonctions
@@ -48,6 +49,8 @@ function OngletCantons() {
   const [enEditionId, setEnEditionId] = useState(null);
   const [formulaireEdition, setFormulaireEdition] = useState({ nom: '', latitude: '', longitude: '' });
   const [basculeEnCoursId, setBasculeEnCoursId] = useState(null);
+  const [carteVisibleCreation, setCarteVisibleCreation] = useState(false);
+  const [carteVisibleEditionId, setCarteVisibleEditionId] = useState(null);
 
   async function charger() {
     setChargement(true);
@@ -129,6 +132,16 @@ function OngletCantons() {
             <label>Latitude (optionnel) <input type="number" step="any" value={formulaire.latitude} onChange={(e) => setFormulaire({ ...formulaire, latitude: e.target.value })} /></label>
             <label>Longitude (optionnel) <input type="number" step="any" value={formulaire.longitude} onChange={(e) => setFormulaire({ ...formulaire, longitude: e.target.value })} /></label>
           </div>
+          <button type="button" className="bouton-secondaire" onClick={() => setCarteVisibleCreation(!carteVisibleCreation)}>
+            {carteVisibleCreation ? 'Masquer la carte' : '🗺️ Choisir la position sur une carte'}
+          </button>
+          {carteVisibleCreation && (
+            <SelecteurPositionCarte
+              latitude={formulaire.latitude}
+              longitude={formulaire.longitude}
+              onChange={(lat, lng) => setFormulaire({ ...formulaire, latitude: lat, longitude: lng })}
+            />
+          )}
           <button type="submit" disabled={envoiEnCours}>{envoiEnCours ? 'Création...' : 'Créer le canton'}</button>
         </form>
       )}
@@ -138,38 +151,59 @@ function OngletCantons() {
           <thead><tr><th>Nom</th><th>Latitude</th><th>Longitude</th><th>Actif</th><th></th></tr></thead>
           <tbody>
             {cantons.map((c) => (
-              <tr key={c.id}>
-                {enEditionId === c.id ? (
-                  <>
-                    <td><input value={formulaireEdition.nom} onChange={(e) => setFormulaireEdition({ ...formulaireEdition, nom: e.target.value })} /></td>
-                    <td><input type="number" step="any" value={formulaireEdition.latitude} onChange={(e) => setFormulaireEdition({ ...formulaireEdition, latitude: e.target.value })} /></td>
-                    <td><input type="number" step="any" value={formulaireEdition.longitude} onChange={(e) => setFormulaireEdition({ ...formulaireEdition, longitude: e.target.value })} /></td>
-                    <td>{c.actif ? '✅' : '❌'}</td>
-                    <td className="actions-ligne">
-                      <button disabled={envoiEnCours} onClick={() => gererEnregistrementEdition(c)}>{envoiEnCours ? '...' : 'Enregistrer'}</button>
-                      <button type="button" onClick={() => setEnEditionId(null)}>Annuler</button>
+              <Fragment key={c.id}>
+                <tr>
+                  {enEditionId === c.id ? (
+                    <>
+                      <td><input value={formulaireEdition.nom} onChange={(e) => setFormulaireEdition({ ...formulaireEdition, nom: e.target.value })} /></td>
+                      <td><input type="number" step="any" value={formulaireEdition.latitude} onChange={(e) => setFormulaireEdition({ ...formulaireEdition, latitude: e.target.value })} /></td>
+                      <td><input type="number" step="any" value={formulaireEdition.longitude} onChange={(e) => setFormulaireEdition({ ...formulaireEdition, longitude: e.target.value })} /></td>
+                      <td>{c.actif ? '✅' : '❌'}</td>
+                      <td className="actions-ligne">
+                        <button
+                          type="button"
+                          className="bouton-icone"
+                          title="Choisir sur une carte"
+                          onClick={() => setCarteVisibleEditionId(carteVisibleEditionId === c.id ? null : c.id)}
+                        >
+                          🗺️
+                        </button>
+                        <button disabled={envoiEnCours} onClick={() => gererEnregistrementEdition(c)}>{envoiEnCours ? '...' : 'Enregistrer'}</button>
+                        <button type="button" onClick={() => { setEnEditionId(null); setCarteVisibleEditionId(null); }}>Annuler</button>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td>{c.nom}</td>
+                      <td>{c.latitude ?? '—'}</td>
+                      <td>{c.longitude ?? '—'}</td>
+                      <td>{c.actif ? '✅' : '❌'}</td>
+                      <td className="actions-ligne">
+                        <button className="bouton-icone" title="Modifier" onClick={() => ouvrirEdition(c)}>✏️</button>
+                        <button
+                          className={`bouton-icone ${c.actif ? 'bouton-danger' : ''}`}
+                          title={c.actif ? 'Désactiver' : 'Réactiver'}
+                          disabled={basculeEnCoursId === c.id}
+                          onClick={() => gererBascule(c)}
+                        >
+                          {basculeEnCoursId === c.id ? '...' : (c.actif ? '🔒' : '🔓')}
+                        </button>
+                      </td>
+                    </>
+                  )}
+                </tr>
+                {enEditionId === c.id && carteVisibleEditionId === c.id && (
+                  <tr>
+                    <td colSpan="5">
+                      <SelecteurPositionCarte
+                        latitude={formulaireEdition.latitude}
+                        longitude={formulaireEdition.longitude}
+                        onChange={(lat, lng) => setFormulaireEdition({ ...formulaireEdition, latitude: lat, longitude: lng })}
+                      />
                     </td>
-                  </>
-                ) : (
-                  <>
-                    <td>{c.nom}</td>
-                    <td>{c.latitude ?? '—'}</td>
-                    <td>{c.longitude ?? '—'}</td>
-                    <td>{c.actif ? '✅' : '❌'}</td>
-                    <td className="actions-ligne">
-                      <button className="bouton-icone" title="Modifier" onClick={() => ouvrirEdition(c)}>✏️</button>
-                      <button
-                        className={`bouton-icone ${c.actif ? 'bouton-danger' : ''}`}
-                        title={c.actif ? 'Désactiver' : 'Réactiver'}
-                        disabled={basculeEnCoursId === c.id}
-                        onClick={() => gererBascule(c)}
-                      >
-                        {basculeEnCoursId === c.id ? '...' : (c.actif ? '🔒' : '🔓')}
-                      </button>
-                    </td>
-                  </>
+                  </tr>
                 )}
-              </tr>
+              </Fragment>
             ))}
             {cantons.length === 0 && <tr><td colSpan="5" className="vide">Aucun canton pour l'instant.</td></tr>}
           </tbody>

@@ -318,6 +318,27 @@ label {
   padding: 1.3rem;
   margin-bottom: 1.5rem;
 }
+
+.bouton-secondaire {
+  background: white; color: var(--vert-fonce); border: 1px solid var(--vert-moyen);
+  margin-bottom: 1rem;
+}
+
+.selecteur-carte { margin-bottom: 1rem; }
+.recherche-carte { position: relative; margin-bottom: 0.6rem; }
+.recherche-carte input {
+  width: 100%; border: 1px solid var(--gris-clair); border-radius: var(--rayon);
+  padding: 0.55rem 0.8rem; font-size: 0.9rem;
+}
+.resultats-recherche {
+  position: absolute; z-index: 1000; top: 100%; left: 0; right: 0;
+  background: white; border: 1px solid var(--gris-clair); border-radius: var(--rayon);
+  box-shadow: var(--ombre); margin-top: 0.2rem; max-height: 220px; overflow-y: auto;
+  list-style: none; padding: 0.2rem 0;
+}
+.resultats-recherche li { padding: 0.5rem 0.8rem; font-size: 0.85rem; cursor: pointer; }
+.resultats-recherche li:hover { background: var(--creme); }
+.note-recherche { font-size: 0.78rem; color: #888; margin: 0.3rem 0 0; }
 .grille-formulaire {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
