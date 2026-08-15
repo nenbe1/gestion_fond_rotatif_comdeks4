@@ -427,6 +427,23 @@ CREATE TABLE cotisation (
   CONSTRAINT fk_cotisation_membre_comite FOREIGN KEY (enregistre_par) REFERENCES membre_comite(id)
 );
 
+-- ---------------------------------------------------------------------
+-- 17. NOTIFICATION — système d'alerte interne (centre de notifications,
+-- pas de push externe). Générée automatiquement par l'application à
+-- certains événements (financement attribué, remboursement confirmé,
+-- décision sur une demande, nouvelle demande à traiter) — jamais saisie
+-- manuellement par un utilisateur.
+-- ---------------------------------------------------------------------
+CREATE TABLE notification (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  utilisateur_id BIGINT NOT NULL,
+  titre VARCHAR(150) NOT NULL,
+  message TEXT NOT NULL,
+  lue BOOLEAN NOT NULL DEFAULT FALSE,
+  date_creation TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_notification_utilisateur FOREIGN KEY (utilisateur_id) REFERENCES utilisateur(id)
+);
+
 -- =====================================================================
 -- DONNEES DE REFERENCE INITIALES (module Paramétrage)
 -- =====================================================================

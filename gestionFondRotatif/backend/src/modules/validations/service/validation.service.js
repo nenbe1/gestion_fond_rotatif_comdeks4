@@ -1,6 +1,7 @@
 const db = require('../../../config/db');
 const validationRepository = require('../repository/validation.repository');
 const membreComiteRepository = require('../../membres_comite/repository/membre_comite.repository');
+const notificationService = require('../../notifications/service/notification.service');
 
 const LIBELLE_NIVEAU = {
   TRESORIER: 'Trésorier',
@@ -106,6 +107,13 @@ async function traiterEtape(validationId, { decision, commentaire, membre_comite
   if (ligne.demande_financement_id) {
     if (decision === 'Rejete') {
       await majStatutDemande(ligne.demande_financement_id, 'Rejetee');
+      // AJOUT : notifie le membre du comité qui a soumis la demande —
+      // rejetée en interne, avant même d'atteindre la Responsable.
+      await notificationService.envoyerAuSoumissionnaireDemande(
+        ligne.demande_financement_id,
+        'Demande rejetée',
+        `Votre demande a été rejetée par le ${LIBELLE_NIVEAU[ligne.niveau] || ligne.niveau}.`
+      );
     } else if (decision === 'Approuve' && ligne.ordre === validationRepository.NIVEAUX.length - 1) {
       await majStatutDemande(ligne.demande_financement_id, 'EnAttenteResponsable');
     }

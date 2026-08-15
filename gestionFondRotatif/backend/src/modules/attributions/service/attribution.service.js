@@ -2,6 +2,7 @@ const db = require('../../../config/db');
 const attributionRepository = require('../repository/attribution.repository');
 const financementRepository = require('../../financements/repository/financement.repository');
 const beneficiaireRepository = require('../../beneficiaires/repository/beneficiaire.repository');
+const notificationService = require('../../notifications/service/notification.service');
 const AttributionFinancement = require('../model/attribution.model');
 
 function erreur(message, statusCode) {
@@ -58,6 +59,17 @@ async function creer({ financement_id, beneficiaire_id, montant_attribue }, cant
   }
 
   const row = await attributionRepository.create({ financement_id, beneficiaire_id, montant_attribue });
+
+  // AJOUT : notifie le bénéficiaire qu'il vient de recevoir un financement.
+  // On ne bloque jamais la création de l'attribution si la notification
+  // échoue (voir notificationService.envoyer, qui ne relance pas d'erreur).
+  const beneficiaire = await beneficiaireRepository.findById(beneficiaire_id);
+  await notificationService.envoyer(
+    beneficiaire?.utilisateurId ?? beneficiaire?.utilisateur_id,
+    'Financement reçu',
+    `Vous avez reçu un financement de ${Number(montant_attribue).toLocaleString('fr-FR')} FCFA.`
+  );
+
   return AttributionFinancement.fromRow(row);
 }
 

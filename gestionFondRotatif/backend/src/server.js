@@ -27,6 +27,7 @@ app.use('/api/administration', require('./modules/administration/routes/administ
 app.use('/api/conseiller-ia', require('./modules/conseiller_ia/routes/conseiller_ia.routes'));
 app.use('/api/groupes-mmf', require('./modules/groupes_mmf/routes/groupe_mmf.routes'));
 app.use('/api/cotisations', require('./modules/cotisations/routes/cotisation.routes'));
+app.use('/api/notifications', require('./modules/notifications/routes/notification.routes'));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'mmf-backend' });

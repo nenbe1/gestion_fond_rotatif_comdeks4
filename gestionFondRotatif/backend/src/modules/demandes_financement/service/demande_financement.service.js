@@ -3,6 +3,7 @@ const demandeRepository = require('../repository/demande_financement.repository'
 const beneficiairePrevuRepository = require('../repository/demande_beneficiaire_prevu.repository');
 const validationRepository = require('../../validations/repository/validation.repository');
 const financementService = require('../../financements/service/financement.service');
+const notificationService = require('../../notifications/service/notification.service');
 const DemandeFinancement = require('../model/demande_financement.model');
 
 function erreur(message, statusCode) {
@@ -40,6 +41,16 @@ async function creer(data, membreComiteId, beneficiairesPrevus = []) {
   if (beneficiairesPrevus.length > 0) {
     await beneficiairePrevuRepository.createMany(row.id, beneficiairesPrevus);
   }
+
+  // AJOUT : alerte la Responsable dès qu'une nouvelle demande est
+  // soumise (visibilité immédiate sur l'activité du comité) — même si
+  // elle n'aura concrètement à la traiter que plus tard, une fois le
+  // circuit interne du comité terminé (statut EnAttenteResponsable).
+  await notificationService.envoyerATousLesResponsables(
+    'Nouvelle demande de financement',
+    `Une nouvelle demande (${row.code_demande}) vient d'être soumise et entame son circuit de validation.`
+  );
+
   return DemandeFinancement.fromRow(row);
 }
 
@@ -94,12 +105,27 @@ async function decisionResponsable(demandeId, { decision, fond_rotatif_id, progr
 
   if (decision === 'Rejete') {
     await demandeRepository.majStatutGlobal(demandeId, 'Rejetee');
+    // AJOUT : notifie le soumissionnaire du rejet final par la Responsable.
+    await notificationService.envoyerAuSoumissionnaireDemande(
+      demandeId,
+      'Demande rejetée',
+      `Votre demande ${demande.code_demande} a été rejetée par la Responsable.`
+    );
     return { demande: await consulterParId(demandeId), financement: null };
   }
 
   const financement = await financementService.creerDepuisDemande(demandeId, {
     fond_rotatif_id, programme_id, responsable_id: responsableId,
   });
+
+  // AJOUT : notifie le soumissionnaire que sa demande a été approuvée et
+  // qu'un financement a bien été créé.
+  await notificationService.envoyerAuSoumissionnaireDemande(
+    demandeId,
+    'Demande approuvée',
+    `Votre demande ${demande.code_demande} a été approuvée — un financement a été créé.`
+  );
+
   return { demande: await consulterParId(demandeId), financement };
 }
 

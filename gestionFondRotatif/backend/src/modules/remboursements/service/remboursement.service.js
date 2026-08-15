@@ -4,6 +4,8 @@ const attributionRepository = require('../../attributions/repository/attribution
 const financementRepository = require('../../financements/repository/financement.repository');
 const validationRepository = require('../../validations/repository/validation.repository');
 const beneficiaireService = require('../../beneficiaires/service/beneficiaire.service');
+const beneficiaireRepository = require('../../beneficiaires/repository/beneficiaire.repository');
+const notificationService = require('../../notifications/service/notification.service');
 const { RemboursementBeneficiaire, RemboursementCollectif } = require('../model/remboursement.model');
 
 function erreur(message, statusCode) {
@@ -70,6 +72,16 @@ async function confirmerIndividuel(id, cantonIdAppelant) {
 
   const updated = await remboursementRepository.majStatutIndividuel(id, 'Confirme');
   await beneficiaireService.recalculerStatutMMF(attribution.beneficiaire_id);
+
+  // AJOUT : notifie le bénéficiaire que son remboursement a bien été
+  // confirmé (double validation terminée).
+  const beneficiaire = await beneficiaireRepository.findById(attribution.beneficiaire_id);
+  await notificationService.envoyer(
+    beneficiaire?.utilisateur_id,
+    'Remboursement confirmé',
+    `Votre remboursement de ${Number(row.montant).toLocaleString('fr-FR')} FCFA a bien été confirmé.`
+  );
+
   return RemboursementBeneficiaire.fromRow(updated);
 }
 
