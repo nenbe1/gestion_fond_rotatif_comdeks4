@@ -16,6 +16,8 @@ export default function Rapports() {
   const [periode, setPeriode] = useState({ periode_debut: '', periode_fin: '' });
   const [generationEnCours, setGenerationEnCours] = useState(false);
   const [suppressionEnCoursId, setSuppressionEnCoursId] = useState(null);
+  const [remboursementsParCanton, setRemboursementsParCanton] = useState([]);
+  const [chargementCantons, setChargementCantons] = useState(true);
 
   async function chargerRapports() {
     setChargement(true);
@@ -29,7 +31,19 @@ export default function Rapports() {
     }
   }
 
-  useEffect(() => { chargerRapports(); }, []);
+  async function chargerRemboursementsParCanton() {
+    setChargementCantons(true);
+    try {
+      const donnees = await appelerApi('/rapports/remboursements-par-canton');
+      setRemboursementsParCanton(donnees.remboursementsParCanton);
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setChargementCantons(false);
+    }
+  }
+
+  useEffect(() => { chargerRapports(); chargerRemboursementsParCanton(); }, []);
 
   async function gererGeneration(e) {
     e.preventDefault();
@@ -82,6 +96,28 @@ export default function Rapports() {
       </form>
 
       {erreur && <p className="message-erreur">{erreur}</p>}
+
+      <h2 className="titre-section-rapport">Répartition par canton</h2>
+      <p className="note">Remboursements collectifs confirmés, toutes périodes confondues.</p>
+      {chargementCantons ? <p>Chargement...</p> : (
+        <table className="tableau" style={{ marginBottom: '2rem' }}>
+          <thead><tr><th>Canton</th><th>Montant remboursé</th><th>Nombre de remboursements</th></tr></thead>
+          <tbody>
+            {remboursementsParCanton.map((c) => (
+              <tr key={c.cantonId}>
+                <td>{c.cantonNom}</td>
+                <td>{c.montantRembourse.toLocaleString('fr-FR')} FCFA</td>
+                <td>{c.nombreRemboursements}</td>
+              </tr>
+            ))}
+            {remboursementsParCanton.length === 0 && (
+              <tr><td colSpan="3" className="vide">Aucune donnée pour l'instant.</td></tr>
+            )}
+          </tbody>
+        </table>
+      )}
+
+      <h2 className="titre-section-rapport">Rapports par période</h2>
 
       {chargement ? <p>Chargement...</p> : (
         <div className="grille-cartes-rapports">

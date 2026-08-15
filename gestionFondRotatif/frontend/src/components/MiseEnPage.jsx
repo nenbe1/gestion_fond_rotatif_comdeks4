@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import NotificationsCloche from './NotificationsCloche';
 
 /**
  * Mise en page principale — barre latérale de navigation + zone de
@@ -101,6 +102,9 @@ export default function MiseEnPage() {
         </div>
       </aside>
       <main className="contenu-principal">
+        <div className="barre-superieure">
+          <NotificationsCloche />
+        </div>
         <Outlet />
       </main>
     </div>

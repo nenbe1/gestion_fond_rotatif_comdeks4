@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import appelerApi from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { couleurs } from '../../theme/couleurs';
+import BoutonCloche from '../../components/BoutonCloche';
 
 const LIBELLE_STATUT = {
   EnCours: 'En cours (comité)',
@@ -69,6 +70,7 @@ export default function TableauDeBordComiteScreen({ navigation }) {
               <Text style={styles.salutation}>Bonjour 👋</Text>
               <Text style={styles.nom} numberOfLines={1} adjustsFontSizeToFit>{utilisateur?.prenom} {utilisateur?.nom}</Text>
             </View>
+            <BoutonCloche navigation={navigation} />
             <TouchableOpacity style={styles.boutonDeconnexion} onPress={confirmerDeconnexion} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Text style={styles.iconeDeconnexion}>🚪</Text>
             </TouchableOpacity>

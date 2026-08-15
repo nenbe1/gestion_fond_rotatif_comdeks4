@@ -97,8 +97,54 @@ async function confirmerPaiementCollectif(connection, id, montantVerse, fondRota
   );
 }
 
+/**
+ * Échéances de remboursement collectif tombant exactement dans
+ * `joursAvance` jours (0 = aujourd'hui), encore en attente, et pas déjà
+ * signalées pour CE type de rappel précis — pour le job de rappels
+ * d'échéance. On remonte jusqu'au canton concerné (via demande ->
+ * membre_comite) pour savoir qui alerter.
+ *
+ * `colonneRappel` est toujours une valeur fixe passée en interne par ce
+ * fichier (jamais une entrée utilisateur) — l'interpolation directe
+ * dans la requête est donc sans risque d'injection ici.
+ */
+async function findEcheances(joursAvance, colonneRappel) {
+  const [rows] = await db.query(
+    `SELECT rc.*, f.code_financement, mc.canton_id
+     FROM remboursement_collectif rc
+     INNER JOIN financement f ON f.id = rc.financement_id
+     INNER JOIN demande_financement d ON d.id = f.demande_financement_id
+     INNER JOIN membre_comite mc ON mc.id = d.membre_comite_id
+     WHERE rc.statut = 'EnAttente' AND rc.${colonneRappel} = FALSE
+       AND rc.date_prevue = DATE_ADD(CURDATE(), INTERVAL ? DAY)`,
+    [joursAvance]
+  );
+  return rows;
+}
+
+async function marquerRappelEnvoye(id, colonneRappel) {
+  await db.query(`UPDATE remboursement_collectif SET ${colonneRappel} = TRUE WHERE id = ?`, [id]);
+}
+
+/** Échéances dans 3 jours, pas encore signalées pour ce rappel-là précisément. */
+function findEcheancesJMoins3() {
+  return findEcheances(3, 'rappel_envoye');
+}
+function marquerRappelJMoins3Envoye(id) {
+  return marquerRappelEnvoye(id, 'rappel_envoye');
+}
+
+/** Échéances tombant aujourd'hui, pas encore signalées pour ce rappel-là précisément. */
+function findEcheancesJourJ() {
+  return findEcheances(0, 'rappel_jour_j_envoye');
+}
+function marquerRappelJourJEnvoye(id) {
+  return marquerRappelEnvoye(id, 'rappel_jour_j_envoye');
+}
+
 module.exports = {
   findIndividuelById, findIndividuelByAttributionId, createIndividuel, majStatutIndividuel,
   findCollectifById, findCollectifByFinancementId, createCollectif,
   majStatutCollectif, confirmerPaiementCollectif, findCollectifEnAttenteResponsable,
+  findEcheancesJMoins3, marquerRappelJMoins3Envoye, findEcheancesJourJ, marquerRappelJourJEnvoye,
 };

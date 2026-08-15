@@ -19,6 +19,7 @@ import MonCompteScreen from '../screens/beneficiaire/MonCompteScreen';
 import DetailFinancementScreen from '../screens/beneficiaire/DetailFinancementScreen';
 import ConseillerIAScreen from '../screens/beneficiaire/ConseillerIAScreen';
 import MesCotisationsScreen from '../screens/beneficiaire/MesCotisationsScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -40,6 +41,7 @@ function PileComite() {
         component={DetailGroupeScreen}
         options={({ route }) => ({ title: route.params?.nomGroupe || 'Détail du groupe' })}
       />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications' }} />
     </Stack.Navigator>
   );
 }
@@ -52,6 +54,7 @@ function PileBeneficiaire() {
       <Stack.Screen name="DetailFinancement" component={DetailFinancementScreen} options={{ title: 'Détail du financement' }} />
       <Stack.Screen name="ConseillerIA" component={ConseillerIAScreen} options={{ headerShown: false }} />
       <Stack.Screen name="MesCotisations" component={MesCotisationsScreen} options={{ title: 'Mes cotisations' }} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications' }} />
     </Stack.Navigator>
   );
 }

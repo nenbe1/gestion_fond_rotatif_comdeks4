@@ -27,6 +27,12 @@ async function findByUtilisateurId(utilisateurId) {
   return rows[0] || null;
 }
 
+/** Tous les membres actifs d'un canton — utilisé pour alerter tout le comité local (ex: rappel d'échéance de remboursement), pas seulement celui qui a soumis une demande précise. */
+async function findByCantonId(cantonId) {
+  const [rows] = await db.query(`${SELECT_BASE} WHERE mc.canton_id = ? AND mc.actif = TRUE`, [cantonId]);
+  return rows;
+}
+
 async function create({ utilisateur_id, fonction_id, canton_id }) {
   const [result] = await db.query(
     `INSERT INTO membre_comite (utilisateur_id, fonction_id, canton_id, date_integration, actif)
@@ -69,6 +75,6 @@ async function createCanton({ nom, latitude, longitude }) {
 }
 
 module.exports = {
-  findAll, findById, findByUtilisateurId, create, update,
+  findAll, findById, findByUtilisateurId, findByCantonId, create, update,
   findAllFonctions, findAllCantons, createCanton,
 };

@@ -274,6 +274,8 @@ CREATE TABLE remboursement_collectif (
   montant_verse DECIMAL(15,2) NULL,
   statut VARCHAR(20) NOT NULL DEFAULT 'EnAttente',   -- EnAttente, Confirme, Rejete, EnRetard
   observation TEXT NULL,
+  rappel_envoye BOOLEAN NOT NULL DEFAULT FALSE,   -- rappel à J-3
+  rappel_jour_j_envoye BOOLEAN NOT NULL DEFAULT FALSE,   -- rappel le jour même de l'échéance
   CONSTRAINT fk_remb_collectif_financement FOREIGN KEY (financement_id) REFERENCES financement(id),
   CONSTRAINT uq_remb_collectif_semaine UNIQUE (financement_id, numero_semaine)
 );

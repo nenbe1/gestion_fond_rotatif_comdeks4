@@ -37,3 +37,8 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`MMF backend demarre sur le port ${PORT}`);
 });
+
+// Rappels d'échéance de remboursement (3 jours avant), vérifiés chaque
+// jour à 7h00 — voir src/jobs/rappelsEcheance.js.
+const { planifierRappelsEcheance } = require('./jobs/rappelsEcheance');
+planifierRappelsEcheance();
