@@ -18,6 +18,7 @@ export default function Rapports() {
   const [generationEnCours, setGenerationEnCours] = useState(false);
   const [suppressionEnCoursId, setSuppressionEnCoursId] = useState(null);
   const [telechargementEnCoursId, setTelechargementEnCoursId] = useState(null);
+  const [telechargementExcelEnCoursId, setTelechargementExcelEnCoursId] = useState(null);
   const [detailOuvertId, setDetailOuvertId] = useState(null);
   const [detailParRapport, setDetailParRapport] = useState({}); // { [rapportId]: [...] }
   const [detailChargementId, setDetailChargementId] = useState(null);
@@ -146,6 +147,33 @@ export default function Rapports() {
     }
   }
 
+  /** Même principe que gererTelechargementPdf ci-dessus, pour le format Excel (module 6 du cahier des charges). */
+  async function gererTelechargementExcel(rapport) {
+    setErreur('');
+    setTelechargementExcelEnCoursId(rapport.id);
+    try {
+      const token = localStorage.getItem('token');
+      const reponse = await fetch(`${BASE_URL}/rapports/${rapport.id}/excel`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!reponse.ok) throw new Error('Impossible de générer le fichier Excel.');
+
+      const blob = await reponse.blob();
+      const url = window.URL.createObjectURL(blob);
+      const lien = document.createElement('a');
+      lien.href = url;
+      lien.download = `rapport_${rapport.periodeDebut}_${rapport.periodeFin}.xlsx`;
+      document.body.appendChild(lien);
+      lien.click();
+      lien.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setTelechargementExcelEnCoursId(null);
+    }
+  }
+
   return (
     <div>
       <h1>Rapports</h1>
@@ -199,6 +227,14 @@ export default function Rapports() {
                     onClick={() => gererTelechargementPdf(r)}
                   >
                     {telechargementEnCoursId === r.id ? '...' : '📄'}
+                  </button>
+                  <button
+                    className="bouton-icone"
+                    title="Télécharger en Excel"
+                    disabled={telechargementExcelEnCoursId === r.id}
+                    onClick={() => gererTelechargementExcel(r)}
+                  >
+                    {telechargementExcelEnCoursId === r.id ? '...' : '📊'}
                   </button>
                   <button
                     className="bouton-icone bouton-danger"

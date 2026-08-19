@@ -1,5 +1,6 @@
 const rapportService = require('../service/rapport.service');
 const { genererRapportPdf } = require('../utils/rapport_pdf');
+const { genererRapportExcel } = require('../utils/rapport_excel');
 
 /**
  * Controller RapportGenere — traduit les requêtes HTTP en appels au
@@ -74,6 +75,23 @@ async function telechargerPdf(req, res) {
   }
 }
 
+/**
+ * GET /api/rapports/:id/excel — télécharge le rapport au format Excel
+ * (3 feuilles : indicateurs, remboursements par canton, détail
+ * nominatif des bénéficiaires financés sur la période) — module 6 du
+ * cahier des charges (export Excel, en complément du PDF déjà présent).
+ */
+async function telechargerExcel(req, res) {
+  try {
+    const rapport = await rapportService.consulterParId(req.params.id);
+    const remboursementsParCanton = await rapportService.consulterRemboursementsParCanton();
+    const detailBeneficiaires = await rapportService.consulterDetailBeneficiaires(req.params.id);
+    await genererRapportExcel(res, rapport, remboursementsParCanton, detailBeneficiaires);
+  } catch (erreur) {
+    res.status(erreur.statusCode || 500).json({ message: erreur.message });
+  }
+}
+
 /** GET /api/rapports/:id/detail — détail nominatif des bénéficiaires financés sur la période du rapport. */
 async function consulterDetail(req, res) {
   try {
@@ -85,5 +103,5 @@ async function consulterDetail(req, res) {
 }
 
 module.exports = {
-  generer, consulterTous, consulterParId, supprimer, consulterRemboursementsParCanton, telechargerPdf, consulterDetail,
+  generer, consulterTous, consulterParId, supprimer, consulterRemboursementsParCanton, telechargerPdf, telechargerExcel, consulterDetail,
 };
