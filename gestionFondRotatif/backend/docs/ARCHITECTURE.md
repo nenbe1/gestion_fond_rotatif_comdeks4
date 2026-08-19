@@ -5,13 +5,13 @@
 ```
 Client Web (React.js)  ──┐
                           ├──►  API REST (Node.js / Express.js)  ──►  MySQL 9.1.0
-Client Mobile (RN/Flutter)┘
+Client Mobile (RN/React Native)┘
 ```
 
 ## Frontend
 
 - **Web** : React.js, responsive.
-- **Mobile** : React Native ou Flutter (à trancher selon l'avancement du web).
+- **Mobile** : React Native.
 - Communication avec le backend exclusivement via l'API REST (JSON).
 
 ## Backend

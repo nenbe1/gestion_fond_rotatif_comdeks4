@@ -24,6 +24,8 @@ router.use(verifierToken);
 router.post('/', verifierHabilitation('GENERER_RAPPORT'), validerGeneration, rapportController.generer);
 router.get('/', rapportController.consulterTous);
 router.get('/remboursements-par-canton', rapportController.consulterRemboursementsParCanton);
+router.get('/:id/pdf', rapportController.telechargerPdf);
+router.get('/:id/detail', rapportController.consulterDetail);
 router.get('/:id', rapportController.consulterParId);
 router.delete('/:id', verifierHabilitation('SUPPRIMER_RAPPORT'), rapportController.supprimer);
 

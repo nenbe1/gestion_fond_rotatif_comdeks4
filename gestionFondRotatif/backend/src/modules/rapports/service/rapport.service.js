@@ -78,7 +78,27 @@ async function consulterRemboursementsParCanton() {
   }));
 }
 
+/**
+ * Détail nominatif des bénéficiaires financés sur la période d'un
+ * rapport donné — utilise les dates figées du rapport (periode_debut/
+ * periode_fin), pas des dates recalculées, pour que la liste
+ * corresponde toujours exactement au chiffre "bénéficiaires touchés"
+ * affiché sur ce rapport précis, même longtemps après sa génération.
+ */
+async function consulterDetailBeneficiaires(rapportId) {
+  const rapport = await consulterParId(rapportId); // 404 si introuvable
+  const rows = await rapportRepository.detailBeneficiairesPeriode(rapport.periodeDebut, rapport.periodeFin);
+  return rows.map((r) => ({
+    beneficiaireNom: r.beneficiaire_nom,
+    beneficiairePrenom: r.beneficiaire_prenom,
+    codeFinancement: r.code_financement,
+    cantonNom: r.canton_nom || '—',
+    montantAttribue: Number(r.montant_attribue),
+    dateAttribution: r.date_attribution,
+  }));
+}
+
 module.exports = {
   genererRapport, consulterParId, consulterTous, supprimer,
-  resoudreResponsableId, consulterRemboursementsParCanton,
+  resoudreResponsableId, consulterRemboursementsParCanton, consulterDetailBeneficiaires,
 };

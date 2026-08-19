@@ -37,6 +37,7 @@ export default function ConseillerIAScreen() {
   const [question, setQuestion] = useState('');
   const [chargementHistorique, setChargementHistorique] = useState(true);
   const [envoiEnCours, setEnvoiEnCours] = useState(false);
+  const [analyseEnCours, setAnalyseEnCours] = useState(false);
   const [erreur, setErreur] = useState('');
   const listeRef = useRef(null);
   const insets = useSafeAreaInsets();
@@ -94,6 +95,29 @@ export default function ConseillerIAScreen() {
     }
   }
 
+  async function genererAnalyse() {
+    if (envoiEnCours || analyseEnCours) return;
+
+    setErreur('');
+    setMessages((prev) => [
+      ...prev,
+      { id: `q-temp-${Date.now()}`, role: 'utilisateur', texte: 'Analyse financière complète' },
+    ]);
+    setAnalyseEnCours(true);
+
+    try {
+      const donnees = await appelerApi('/conseiller-ia/analyse', { method: 'POST' });
+      setMessages((prev) => [
+        ...prev,
+        { id: `r-${donnees.echange.id}`, role: 'assistant', texte: donnees.echange.reponse },
+      ]);
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setAnalyseEnCours(false);
+    }
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.conteneur}
@@ -108,6 +132,16 @@ export default function ConseillerIAScreen() {
           <Text style={styles.titreBandeau}>Conseiller IA</Text>
           <Text style={styles.sousTitreBandeau}>Basé sur votre situation réelle</Text>
         </View>
+        <TouchableOpacity
+          style={styles.boutonAnalyse}
+          onPress={genererAnalyse}
+          disabled={analyseEnCours || envoiEnCours}
+          activeOpacity={0.85}
+        >
+          {analyseEnCours
+            ? <ActivityIndicator size="small" color={couleurs.blanc} />
+            : <Text style={styles.texteBoutonAnalyse}>📊 Analyse</Text>}
+        </TouchableOpacity>
       </View>
 
       {chargementHistorique ? (
@@ -136,9 +170,21 @@ export default function ConseillerIAScreen() {
                 item.role === 'utilisateur' ? styles.bulleUtilisateur : styles.bulleAssistant,
               ]}
             >
-              <Text style={item.role === 'utilisateur' ? styles.texteUtilisateur : styles.texteAssistant}>
-                {item.texte}
-              </Text>
+              {item.role === 'utilisateur' ? (
+                <Text style={styles.texteUtilisateur}>{item.texte}</Text>
+              ) : (
+                item.texte.split('\n').map((ligne, i) => {
+                  const estTitre = ligne.trim().startsWith('## ');
+                  return (
+                    <Text
+                      key={i}
+                      style={estTitre ? styles.titreSectionReponse : styles.texteAssistant}
+                    >
+                      {estTitre ? ligne.trim().slice(3) : ligne}
+                    </Text>
+                  );
+                })
+              )}
             </View>
           )}
           ListFooterComponent={
@@ -207,6 +253,22 @@ const styles = StyleSheet.create({
   iconeRondeTexte: { fontSize: 18 },
   titreBandeau: { fontSize: 16, fontWeight: '700', color: couleurs.blanc },
   sousTitreBandeau: { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 1 },
+
+  boutonAnalyse: {
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  texteBoutonAnalyse: { color: couleurs.blanc, fontSize: 12, fontWeight: '700' },
+
+  titreSectionReponse: {
+    color: couleurs.vertFonce,
+    fontWeight: '700',
+    fontSize: 14,
+    marginTop: 8,
+    marginBottom: 2,
+  },
 
   centre: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 

@@ -1,4 +1,5 @@
 const rapportService = require('../service/rapport.service');
+const { genererRapportPdf } = require('../utils/rapport_pdf');
 
 /**
  * Controller RapportGenere — traduit les requêtes HTTP en appels au
@@ -63,4 +64,26 @@ async function consulterRemboursementsParCanton(req, res) {
   }
 }
 
-module.exports = { generer, consulterTous, consulterParId, supprimer, consulterRemboursementsParCanton };
+/** GET /api/rapports/:id/pdf — télécharge le rapport au format PDF. */
+async function telechargerPdf(req, res) {
+  try {
+    const rapport = await rapportService.consulterParId(req.params.id);
+    genererRapportPdf(res, rapport);
+  } catch (erreur) {
+    res.status(erreur.statusCode || 500).json({ message: erreur.message });
+  }
+}
+
+/** GET /api/rapports/:id/detail — détail nominatif des bénéficiaires financés sur la période du rapport. */
+async function consulterDetail(req, res) {
+  try {
+    const detail = await rapportService.consulterDetailBeneficiaires(req.params.id);
+    res.status(200).json({ detail });
+  } catch (erreur) {
+    res.status(erreur.statusCode || 500).json({ message: erreur.message });
+  }
+}
+
+module.exports = {
+  generer, consulterTous, consulterParId, supprimer, consulterRemboursementsParCanton, telechargerPdf, consulterDetail,
+};

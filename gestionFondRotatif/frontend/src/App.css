@@ -470,6 +470,16 @@ label {
 .periode-rapport { font-weight: 700; color: var(--vert-fonce); margin: 0 0 0.8rem; }
 .indicateurs-rapport { display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.85rem; }
 .indicateurs-rapport span { font-weight: 700; color: var(--gris-texte); margin-right: 0.4rem; }
+.indicateurs-rapport > div { display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem; }
+
+.pastille-evolution { font-size: 0.72rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 999px; }
+.evolution-hausse { background: #e6f2ea; color: var(--vert-moyen); }
+.evolution-baisse { background: #fbe9e6; color: var(--brique); }
+.evolution-stable { background: #eef1f6; color: var(--bleu-attente); }
+.note-comparaison { font-size: 0.72rem; color: #999; margin: 0.5rem 0 0; }
+
+.detail-nominatif { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--gris-clair); }
+.detail-nominatif .tableau { font-size: 0.8rem; }
 
 .ligne-remboursement { display: flex; gap: 0.4rem; align-items: center; }
 .ligne-remboursement input { width: 100px; padding: 0.35rem 0.5rem; }
@@ -562,4 +572,99 @@ label {
   /* Tableaux : défilement horizontal plutôt que débordement ou colonnes
      écrasées illisibles sur un petit écran. */
   .tableau { display: block; overflow-x: auto; white-space: nowrap; }
+}
+
+/* ============================================================
+   Conseiller IA (Web) — la Responsable choisit un bénéficiaire à
+   gauche, discute avec le Conseiller IA à droite (même logique que
+   l'écran Mobile, adaptée en disposition deux colonnes desktop).
+   ============================================================ */
+.grille-conseiller-ia {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 1.2rem;
+  align-items: start;
+  margin-top: 1rem;
+}
+
+.panneau-selection-beneficiaire { padding: 1rem; display: flex; flex-direction: column; gap: 0.7rem; }
+
+.liste-selection-beneficiaires {
+  list-style: none; margin: 0; padding: 0;
+  max-height: 60vh; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 0.3rem;
+}
+
+.item-selection-beneficiaire {
+  width: 100%; text-align: left; background: none; border: 1px solid transparent;
+  border-radius: var(--rayon); padding: 0.55rem 0.7rem; cursor: pointer;
+  display: flex; flex-direction: column; gap: 0.1rem;
+}
+.item-selection-beneficiaire:hover { background: var(--gris-clair); }
+.item-selection-beneficiaire.selectionne { background: var(--vert-fonce); }
+.item-selection-beneficiaire.selectionne .nom-beneficiaire-selection,
+.item-selection-beneficiaire.selectionne .detail-beneficiaire-selection { color: white; }
+
+.nom-beneficiaire-selection { font-weight: 600; font-size: 0.9rem; color: var(--gris-texte); }
+.detail-beneficiaire-selection { font-size: 0.78rem; color: #888; }
+
+.panneau-conversation-ia {
+  padding: 0; overflow: hidden;
+  display: flex; flex-direction: column;
+  min-height: 60vh;
+}
+
+.message-invite-selection { padding: 2rem; text-align: center; color: #888; margin: 0; }
+
+.entete-conversation-ia {
+  background: var(--vert-fonce); color: white;
+  padding: 1rem 1.2rem;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.sous-texte-entete-ia { display: block; font-size: 0.78rem; color: rgba(255,255,255,0.7); }
+
+.bouton-analyse-web {
+  background: rgba(255,255,255,0.16) !important; color: white !important;
+  border-color: rgba(255,255,255,0.4) !important;
+}
+.bouton-analyse-web:hover:not(:disabled) { background: rgba(255,255,255,0.28) !important; }
+.bouton-analyse-web:disabled { opacity: 0.6; }
+
+.zone-messages-ia {
+  flex: 1; overflow-y: auto; padding: 1.2rem;
+  display: flex; flex-direction: column; gap: 0.7rem;
+  background: var(--creme);
+  max-height: 50vh;
+}
+
+.bulle-message-ia {
+  max-width: 75%; padding: 0.6rem 0.9rem; border-radius: 12px; font-size: 0.9rem; line-height: 1.4;
+}
+.bulle-utilisateur {
+  align-self: flex-end; background: var(--vert-fonce); color: white; border-bottom-right-radius: 2px;
+}
+.bulle-assistant {
+  align-self: flex-start; background: white; box-shadow: var(--ombre); border-bottom-left-radius: 2px;
+}
+
+.titre-section-reponse-ia { color: var(--vert-fonce); font-weight: 700; margin-top: 0.4rem; }
+.titre-section-reponse-ia:first-child { margin-top: 0; }
+
+.indicateur-chargement-ia { color: #888; font-size: 0.85rem; font-style: italic; margin: 0; }
+
+.formulaire-question-ia {
+  display: flex; gap: 0.6rem; padding: 1rem 1.2rem; border-top: 1px solid var(--gris-clair);
+}
+.formulaire-question-ia input {
+  flex: 1; padding: 0.6rem 0.8rem; border-radius: var(--rayon); border: 1px solid var(--gris-clair);
+}
+.formulaire-question-ia button {
+  background: var(--vert-fonce); color: white; border: none; border-radius: var(--rayon);
+  padding: 0.6rem 1.2rem; cursor: pointer; font-weight: 600;
+}
+.formulaire-question-ia button:disabled { opacity: 0.5; cursor: default; }
+
+@media (max-width: 900px) {
+  .grille-conseiller-ia { grid-template-columns: 1fr; }
+  .liste-selection-beneficiaires { max-height: 240px; }
 }

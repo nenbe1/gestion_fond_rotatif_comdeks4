@@ -119,23 +119,13 @@ async function recalculerStatutMMF(id) {
 }
 
 /**
- * CORRECTION : chaque financement affiche maintenant son reste à payer
- * exact (montant attribué + majoration figée - ce qui est déjà
- * CONFIRMÉ par le Trésorier), au lieu d'un simple total global qui ne
- * tenait pas compte de la majoration ni de la distinction
- * "enregistré" / "confirmé" introduite par la double validation des
- * remboursements individuels.
- *
- * Consultation par le bénéficiaire connecté de son propre compte
- * (Mobile) : ses infos, chacun de ses financements avec son propre
- * reste à payer, et une situation globale agrégée.
- * @throws {Error} 403 si l'utilisateur connecté n'est pas un bénéficiaire
+ * Construit le compte complet (infos + financements détaillés + situation
+ * globale agrégée) à partir d'une ligne bénéficiaire déjà chargée —
+ * factorisé pour être utilisé aussi bien par consulterMonCompte()
+ * (bénéficiaire connecté, Mobile) que par consulterCompteParId()
+ * (Responsable consultant n'importe quel bénéficiaire, Web).
  */
-async function consulterMonCompte(utilisateurId) {
-  const row = await beneficiaireRepository.findByUtilisateurId(utilisateurId);
-  if (!row) {
-    throw erreur("L'utilisateur connecté n'est pas enregistré comme bénéficiaire.", 403);
-  }
+async function construireCompte(row) {
   const beneficiaire = Beneficiaire.fromRow(row);
 
   const financementsRows = await attributionRepository.findByBeneficiaireId(beneficiaire.id);
@@ -176,4 +166,48 @@ async function consulterMonCompte(utilisateurId) {
   };
 }
 
-module.exports = { creer, consulterTous, consulterParId, modifier, supprimer, recalculerStatutMMF, consulterMonCompte };
+/**
+ * CORRECTION : chaque financement affiche maintenant son reste à payer
+ * exact (montant attribué + majoration figée - ce qui est déjà
+ * CONFIRMÉ par le Trésorier), au lieu d'un simple total global qui ne
+ * tenait pas compte de la majoration ni de la distinction
+ * "enregistré" / "confirmé" introduite par la double validation des
+ * remboursements individuels.
+ *
+ * Consultation par le bénéficiaire connecté de son propre compte
+ * (Mobile) : ses infos, chacun de ses financements avec son propre
+ * reste à payer, et une situation globale agrégée.
+ * @throws {Error} 403 si l'utilisateur connecté n'est pas un bénéficiaire
+ */
+async function consulterMonCompte(utilisateurId) {
+  const row = await beneficiaireRepository.findByUtilisateurId(utilisateurId);
+  if (!row) {
+    throw erreur("L'utilisateur connecté n'est pas enregistré comme bénéficiaire.", 403);
+  }
+  return construireCompte(row);
+}
+
+/**
+ * Consultation du compte complet d'un bénéficiaire par son id — réservée
+ * à la Responsable (Web), notamment pour le Conseiller IA côté Web où
+ * elle choisit le bénéficiaire plutôt que de consulter son propre compte.
+ * @throws {Error} 404 si le bénéficiaire n'existe pas
+ */
+async function consulterCompteParId(beneficiaireId) {
+  const row = await beneficiaireRepository.findById(beneficiaireId);
+  if (!row) {
+    throw erreur('Bénéficiaire introuvable.', 404);
+  }
+  return construireCompte(row);
+}
+
+module.exports = {
+  creer,
+  consulterTous,
+  consulterParId,
+  modifier,
+  supprimer,
+  recalculerStatutMMF,
+  consulterMonCompte,
+  consulterCompteParId,
+};

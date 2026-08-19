@@ -16,6 +16,7 @@ import Autorites from './pages/Autorites';
 import Administration from './pages/Administration';
 import Parametrage from './pages/Parametrage';
 import StatistiquesAutorite from './pages/StatistiquesAutorite';
+import ConseillerIA from './pages/ConseillerIA';
 import './App.css';
 
 /**
@@ -113,6 +114,7 @@ function App() {
             <Route path="autorites" element={<Autorites />} />
             <Route path="administration" element={<Administration />} />
             <Route path="parametrage" element={<Parametrage />} />
+            <Route path="conseiller-ia" element={<ConseillerIA />} />
           </Route>
         </Routes>
       </BrowserRouter>

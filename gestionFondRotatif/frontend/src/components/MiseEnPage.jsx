@@ -41,6 +41,7 @@ const GROUPES_NAV = [
       { to: '/situation-cantons', icone: '🗺️', libelle: 'Situation par canton' },
       { to: '/rapports', icone: '📈', libelle: 'Rapports' },
       { to: '/autorites', icone: '🏛️', libelle: 'Autorités' },
+      { to: '/conseiller-ia', icone: '🤖', libelle: 'Conseiller IA' },
     ],
   },
   {

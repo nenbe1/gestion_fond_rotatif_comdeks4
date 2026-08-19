@@ -105,7 +105,32 @@ async function remboursementsParCanton() {
   return rows;
 }
 
+/**
+ * Détail nominatif des bénéficiaires financés sur une période — mêmes
+ * critères exacts que compterBeneficiairesPeriode (date_attribution
+ * BETWEEN), pour que la liste corresponde toujours au chiffre affiché
+ * sur le rapport, même si on la consulte longtemps après sa génération.
+ */
+async function detailBeneficiairesPeriode(periodeDebut, periodeFin) {
+  const [rows] = await db.query(
+    `SELECT
+       a.montant_attribue, a.date_attribution,
+       u.nom AS beneficiaire_nom, u.prenom AS beneficiaire_prenom,
+       f.code_financement, c.nom AS canton_nom
+     FROM attribution_financement a
+     INNER JOIN beneficiaire b ON b.id = a.beneficiaire_id
+     INNER JOIN utilisateur u ON u.id = b.utilisateur_id
+     INNER JOIN financement f ON f.id = a.financement_id
+     LEFT JOIN canton c ON c.id = b.canton_id
+     WHERE a.date_attribution BETWEEN ? AND ?
+     ORDER BY a.date_attribution ASC`,
+    [periodeDebut, periodeFin]
+  );
+  return rows;
+}
+
 module.exports = {
   compterBeneficiairesPeriode, sommeFinanceePeriode, sommeRembourseePeriode,
   compterRetardsPeriode, create, findById, findAll, supprimer, remboursementsParCanton,
+  detailBeneficiairesPeriode,
 };
