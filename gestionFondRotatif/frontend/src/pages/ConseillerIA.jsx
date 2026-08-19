@@ -3,21 +3,21 @@ import appelerApi from '../api/client';
 
 /**
  * Page Conseiller IA (Web) — réservée à la Responsable (voir App.jsx,
- * ROLES_AUTORISES_WEB). Les membres du comité utilisent l'équivalent
- * Mobile (ConseillerIAScreen), qui ne consulte que le compte du
- * bénéficiaire connecté ; ici la Responsable choisit d'abord QUEL
- * bénéficiaire consulter, ce qui lui permet d'appuyer l'instruction
- * d'un dossier de prêt.
+ * ROLES_AUTORISES_WEB). Elle consulte la situation agrégée d'un CANTON
+ * entier, pas d'un bénéficiaire précis : chaque canton a son propre
+ * membre du comité sur le terrain, qui lui utilise le Conseiller IA au
+ * niveau du bénéficiaire depuis le Mobile (écran équivalent côté
+ * comité). La Responsable garde ainsi une vision d'ensemble par canton
+ * avant de se pencher sur un dossier individuel avec le comité local.
  *
- * Réutilise les endpoints /conseiller-ia/beneficiaires/:id/... créés
- * côté backend pour cet usage (jamais /conseiller-ia/demander ni
- * /analyse tout court, qui restent réservés au bénéficiaire lui-même).
+ * Réutilise les endpoints /conseiller-ia/cantons/:id/... créés côté
+ * backend pour cet usage.
  */
 export default function ConseillerIA() {
-  const [beneficiaires, setBeneficiaires] = useState([]);
+  const [cantons, setCantons] = useState([]);
   const [chargementListe, setChargementListe] = useState(true);
   const [recherche, setRecherche] = useState('');
-  const [beneficiaireId, setBeneficiaireId] = useState('');
+  const [cantonId, setCantonId] = useState('');
 
   const [messages, setMessages] = useState([]);
   const [historiqueCharge, setHistoriqueCharge] = useState(false);
@@ -30,8 +30,8 @@ export default function ConseillerIA() {
     (async () => {
       setChargementListe(true);
       try {
-        const donnees = await appelerApi('/beneficiaires');
-        setBeneficiaires(donnees.beneficiaires);
+        const donnees = await appelerApi('/membres-comite/reference/cantons');
+        setCantons(donnees.cantons);
       } catch (err) {
         setErreur(err.message);
       } finally {
@@ -41,7 +41,7 @@ export default function ConseillerIA() {
   }, []);
 
   useEffect(() => {
-    if (!beneficiaireId) {
+    if (!cantonId) {
       setMessages([]);
       setHistoriqueCharge(false);
       return;
@@ -50,7 +50,7 @@ export default function ConseillerIA() {
       setErreur('');
       setHistoriqueCharge(false);
       try {
-        const donnees = await appelerApi(`/conseiller-ia/beneficiaires/${beneficiaireId}/historique`);
+        const donnees = await appelerApi(`/conseiller-ia/cantons/${cantonId}/historique`);
         const historiqueTrie = [...donnees.historique].reverse(); // le plus ancien en premier, comme une conversation
         setMessages(
           historiqueTrie.flatMap((echange) => [
@@ -64,18 +64,18 @@ export default function ConseillerIA() {
         setHistoriqueCharge(true);
       }
     })();
-  }, [beneficiaireId]);
+  }, [cantonId]);
 
-  const beneficiairesAffiches = beneficiaires.filter((b) => {
+  const cantonsAffiches = cantons.filter((c) => {
     const q = recherche.trim().toLowerCase();
     if (!q) return true;
-    return `${b.nom} ${b.prenom} ${b.telephone}`.toLowerCase().includes(q);
+    return c.nom.toLowerCase().includes(q);
   });
 
   async function envoyerQuestion(e) {
     e.preventDefault();
     const texte = question.trim();
-    if (!texte || envoiEnCours || analyseEnCours || !beneficiaireId) return;
+    if (!texte || envoiEnCours || analyseEnCours || !cantonId) return;
 
     setErreur('');
     setQuestion('');
@@ -83,7 +83,7 @@ export default function ConseillerIA() {
     setEnvoiEnCours(true);
 
     try {
-      const donnees = await appelerApi(`/conseiller-ia/beneficiaires/${beneficiaireId}/demander`, {
+      const donnees = await appelerApi(`/conseiller-ia/cantons/${cantonId}/demander`, {
         method: 'POST',
         body: { question: texte },
       });
@@ -99,7 +99,7 @@ export default function ConseillerIA() {
   }
 
   async function genererAnalyse() {
-    if (envoiEnCours || analyseEnCours || !beneficiaireId) return;
+    if (envoiEnCours || analyseEnCours || !cantonId) return;
 
     setErreur('');
     setMessages((prev) => [
@@ -109,7 +109,7 @@ export default function ConseillerIA() {
     setAnalyseEnCours(true);
 
     try {
-      const donnees = await appelerApi(`/conseiller-ia/beneficiaires/${beneficiaireId}/analyse`, {
+      const donnees = await appelerApi(`/conseiller-ia/cantons/${cantonId}/analyse`, {
         method: 'POST',
       });
       setMessages((prev) => [
@@ -123,14 +123,14 @@ export default function ConseillerIA() {
     }
   }
 
-  const beneficiaireSelectionne = beneficiaires.find((b) => String(b.id) === String(beneficiaireId));
+  const cantonSelectionne = cantons.find((c) => String(c.id) === String(cantonId));
 
   return (
     <div>
       <h1>Conseiller IA</h1>
       <p className="sous-titre">
-        Consultez l'analyse et les conseils de l'IA sur la situation financière d'un bénéficiaire,
-        pour appuyer vos décisions pendant l'instruction d'un dossier.
+        Consultez l'analyse et les conseils de l'IA sur la situation financière d'un canton,
+        pour garder une vision d'ensemble avant de vous pencher sur un dossier avec le comité local.
       </p>
 
       {erreur && <p className="message-erreur">{erreur}</p>}
@@ -139,7 +139,7 @@ export default function ConseillerIA() {
         <div className="carte-info panneau-selection-beneficiaire">
           <input
             type="text"
-            placeholder="Rechercher un bénéficiaire..."
+            placeholder="Rechercher un canton..."
             className="champ-recherche"
             value={recherche}
             onChange={(e) => setRecherche(e.target.value)}
@@ -149,31 +149,30 @@ export default function ConseillerIA() {
             <p>Chargement...</p>
           ) : (
             <ul className="liste-selection-beneficiaires">
-              {beneficiairesAffiches.map((b) => (
-                <li key={b.id}>
+              {cantonsAffiches.map((c) => (
+                <li key={c.id}>
                   <button
-                    className={`item-selection-beneficiaire ${String(b.id) === String(beneficiaireId) ? 'selectionne' : ''}`}
-                    onClick={() => setBeneficiaireId(b.id)}
+                    className={`item-selection-beneficiaire ${String(c.id) === String(cantonId) ? 'selectionne' : ''}`}
+                    onClick={() => setCantonId(c.id)}
                   >
-                    <span className="nom-beneficiaire-selection">{b.nom} {b.prenom}</span>
-                    <span className="detail-beneficiaire-selection">{b.telephone}</span>
+                    <span className="nom-beneficiaire-selection">{c.nom}</span>
                   </button>
                 </li>
               ))}
-              {beneficiairesAffiches.length === 0 && <p>Aucun bénéficiaire trouvé.</p>}
+              {cantonsAffiches.length === 0 && <p>Aucun canton trouvé.</p>}
             </ul>
           )}
         </div>
 
         <div className="carte-info panneau-conversation-ia">
-          {!beneficiaireId ? (
-            <p className="message-invite-selection">Choisissez un bénéficiaire pour consulter le Conseiller IA.</p>
+          {!cantonId ? (
+            <p className="message-invite-selection">Choisissez un canton pour consulter le Conseiller IA.</p>
           ) : (
             <>
               <div className="entete-conversation-ia">
                 <div>
-                  <strong>{beneficiaireSelectionne?.nom} {beneficiaireSelectionne?.prenom}</strong>
-                  <span className="sous-texte-entete-ia">Basé sur sa situation réelle</span>
+                  <strong>Canton de {cantonSelectionne?.nom}</strong>
+                  <span className="sous-texte-entete-ia">Basé sur la situation réelle du canton</span>
                 </div>
                 <button
                   className="bouton-secondaire bouton-analyse-web"
@@ -206,7 +205,7 @@ export default function ConseillerIA() {
               <form className="formulaire-question-ia" onSubmit={envoyerQuestion}>
                 <input
                   type="text"
-                  placeholder="Poser une question sur ce bénéficiaire..."
+                  placeholder="Poser une question sur ce canton..."
                   value={question}
                   onChange={(e) => setQuestion(e.target.value)}
                   disabled={envoiEnCours || analyseEnCours}

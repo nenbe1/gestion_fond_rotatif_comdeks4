@@ -188,9 +188,12 @@ async function consulterMonCompte(utilisateurId) {
 }
 
 /**
- * Consultation du compte complet d'un bénéficiaire par son id — réservée
- * à la Responsable (Web), notamment pour le Conseiller IA côté Web où
- * elle choisit le bénéficiaire plutôt que de consulter son propre compte.
+ * Consultation du compte complet d'un bénéficiaire par son id — utilisée
+ * pour le Conseiller IA côté Mobile quand c'est un membre du comité qui
+ * consulte (et non le bénéficiaire lui-même) : ses infos, chacun de ses
+ * financements avec son propre reste à payer, et une situation globale
+ * agrégée. Le contrôleur vérifie que le bénéficiaire appartient bien au
+ * canton du membre du comité connecté (voir conseiller_ia.controller.js).
  * @throws {Error} 404 si le bénéficiaire n'existe pas
  */
 async function consulterCompteParId(beneficiaireId) {
@@ -199,6 +202,48 @@ async function consulterCompteParId(beneficiaireId) {
     throw erreur('Bénéficiaire introuvable.', 404);
   }
   return construireCompte(row);
+}
+
+/**
+ * Situation financière agrégée d'un canton entier — utilisée pour le
+ * Conseiller IA côté Web (Responsable) : elle consulte un canton plutôt
+ * qu'un bénéficiaire précis (chaque canton ayant son propre membre du
+ * comité, cette vue lui donne une vision d'ensemble avant de se pencher
+ * sur un dossier individuel, ce qu'elle fait alors avec le comité local).
+ * @throws {Error} 404 si le canton n'existe pas
+ */
+async function consulterSituationCanton(cantonId) {
+  const canton = await beneficiaireRepository.findCantonById(cantonId);
+  if (!canton) {
+    throw erreur('Canton introuvable.', 404);
+  }
+
+  const rows = await beneficiaireRepository.findAll({ cantonId });
+  const comptes = await Promise.all(rows.map((row) => construireCompte(row)));
+
+  const totalAttribue = comptes.reduce((s, c) => s + c.situation.totalAttribue, 0);
+  const totalDu = comptes.reduce((s, c) => s + c.situation.totalDu, 0);
+  const totalRembourse = comptes.reduce((s, c) => s + c.situation.totalRembourse, 0);
+  const nombreEnDifficulte = comptes.filter((c) => c.situation.resteAPayer > 0).length;
+
+  return {
+    canton,
+    situation: {
+      nombreBeneficiaires: comptes.length,
+      totalAttribue,
+      totalDu,
+      totalRembourse,
+      resteAPayer: Math.max(totalDu - totalRembourse, 0),
+      nombreBeneficiairesEnDifficulte: nombreEnDifficulte,
+    },
+    beneficiaires: comptes.map((c) => ({
+      id: c.beneficiaire.id,
+      nom: c.beneficiaire.nom,
+      prenom: c.beneficiaire.prenom,
+      statutMMF: c.beneficiaire.statutMMF,
+      resteAPayer: c.situation.resteAPayer,
+    })),
+  };
 }
 
 module.exports = {
@@ -210,4 +255,5 @@ module.exports = {
   recalculerStatutMMF,
   consulterMonCompte,
   consulterCompteParId,
+  consulterSituationCanton,
 };

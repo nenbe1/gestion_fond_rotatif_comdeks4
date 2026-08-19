@@ -369,13 +369,25 @@ CREATE TABLE demande_beneficiaire_prevu (
 -- 13. CONSEILLER_IA_HISTORIQUE — historique des échanges question/réponse
 -- entre un bénéficiaire (Mobile) et le Conseiller Financier IA (Gemini).
 -- ---------------------------------------------------------------------
+-- CORRECTION (accès Web par la Responsable, par canton) : un échange
+-- porte soit sur un bénéficiaire (Mobile — bénéficiaire lui-même ou
+-- membre du comité de son canton), soit sur un canton entier (Web —
+-- Responsable), jamais les deux à la fois. Les deux colonnes sont donc
+-- nullables, avec une contrainte qui garantit qu'exactement l'une des
+-- deux est renseignée.
 CREATE TABLE conseiller_ia_historique (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  beneficiaire_id BIGINT NOT NULL,
+  beneficiaire_id BIGINT NULL,
+  canton_id BIGINT NULL,
   question TEXT NOT NULL,
   reponse TEXT NOT NULL,
   date_creation TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT fk_conseiller_ia_beneficiaire FOREIGN KEY (beneficiaire_id) REFERENCES beneficiaire(id)
+  CONSTRAINT fk_conseiller_ia_beneficiaire FOREIGN KEY (beneficiaire_id) REFERENCES beneficiaire(id),
+  CONSTRAINT fk_conseiller_ia_canton FOREIGN KEY (canton_id) REFERENCES canton(id),
+  CONSTRAINT chk_conseiller_ia_cible CHECK (
+    (beneficiaire_id IS NOT NULL AND canton_id IS NULL) OR
+    (beneficiaire_id IS NULL AND canton_id IS NOT NULL)
+  )
 );
 
 -- ---------------------------------------------------------------------

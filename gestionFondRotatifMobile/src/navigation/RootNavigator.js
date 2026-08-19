@@ -15,6 +15,7 @@ import DetailFinancementRemboursementsScreen from '../screens/comite/DetailFinan
 import DetailCircuitRemboursementCollectifScreen from '../screens/comite/DetailCircuitRemboursementCollectifScreen';
 import ListeGroupesScreen from '../screens/comite/ListeGroupesScreen';
 import DetailGroupeScreen from '../screens/comite/DetailGroupeScreen';
+import ConseillerIAComiteScreen from '../screens/comite/ConseillerIAComiteScreen';
 import MonCompteScreen from '../screens/beneficiaire/MonCompteScreen';
 import DetailFinancementScreen from '../screens/beneficiaire/DetailFinancementScreen';
 import ConseillerIAScreen from '../screens/beneficiaire/ConseillerIAScreen';
@@ -41,6 +42,7 @@ function PileComite() {
         component={DetailGroupeScreen}
         options={({ route }) => ({ title: route.params?.nomGroupe || 'Détail du groupe' })}
       />
+      <Stack.Screen name="ConseillerIAComite" component={ConseillerIAComiteScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications' }} />
     </Stack.Navigator>
   );

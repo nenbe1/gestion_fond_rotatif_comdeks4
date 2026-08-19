@@ -38,6 +38,39 @@ ${ligneFinancements}
 }
 
 /**
+ * Équivalent de construireContexte(), mais agrégé au niveau d'un canton
+ * entier plutôt qu'un seul bénéficiaire — utilisé côté Web (Responsable),
+ * qui supervise plusieurs cantons et n'a pas besoin d'un détail
+ * individuel à ce stade (elle instruit ensuite les dossiers précis avec
+ * le comité local du canton concerné).
+ */
+function construireContexteCanton(donneesCanton) {
+  const { canton, situation, beneficiaires } = donneesCanton;
+
+  const enDifficulte = beneficiaires
+    .filter((b) => b.resteAPayer > 0)
+    .sort((a, b) => b.resteAPayer - a.resteAPayer)
+    .slice(0, 10);
+
+  const ligneEnDifficulte = enDifficulte.length === 0
+    ? "Aucun bénéficiaire avec un reste à payer en cours."
+    : enDifficulte.map((b) => `- ${b.nom} ${b.prenom} (${b.statutMMF}) : reste à payer ${b.resteAPayer.toFixed(0)} FCFA`).join('\n');
+
+  return `
+Situation du canton de ${canton.nom} :
+- Nombre de bénéficiaires : ${situation.nombreBeneficiaires}
+- Montant total attribué : ${situation.totalAttribue.toFixed(0)} FCFA
+- Montant total dû (avec majoration) : ${situation.totalDu.toFixed(0)} FCFA
+- Montant total remboursé : ${situation.totalRembourse.toFixed(0)} FCFA
+- Reste à payer global : ${situation.resteAPayer.toFixed(0)} FCFA
+- Bénéficiaires avec un reste à payer en cours : ${situation.nombreBeneficiairesEnDifficulte}
+
+Bénéficiaires avec le plus gros reste à payer (jusqu'à 10) :
+${ligneEnDifficulte}
+  `.trim();
+}
+
+/**
  * Le prompt système rappelle explicitement que la décision finale
  * d'accorder un nouveau prêt appartient au comité (circuit de validation
  * à 3 niveaux déjà en place) — le Conseiller IA informe et oriente, il ne
@@ -85,6 +118,55 @@ Règles :
 ${contexte}
 
 Génère l'analyse financière complète du bénéficiaire, en respectant strictement les 4 sections demandées.
+  `.trim();
+}
+
+/**
+ * Variantes canton des deux prompts ci-dessus, destinées à la
+ * Responsable (Web) : le destinataire n'est plus "le bénéficiaire" mais
+ * "la Responsable qui supervise ce canton" — le ton et l'angle changent
+ * en conséquence (vision d'ensemble et priorisation, plutôt que conseil
+ * personnalisé direct à un bénéficiaire).
+ */
+function construirePromptCanton(contexte, question) {
+  return `
+Tu es le Conseiller Financier IA de l'application de gestion du Fonds Rotatif MMF (COMDEKS4, AJEOV Technologies), destinée à des femmes et jeunes bénéficiaires en zone rurale au Cameroun.
+
+Tu t'adresses ici à la Responsable, qui supervise plusieurs cantons et consulte la situation agrégée d'un canton précis (chaque canton a son propre membre du comité sur le terrain).
+
+Règles :
+- Réponds en français, de façon simple et claire.
+- Base-toi UNIQUEMENT sur les données réelles du canton fournies ci-dessous.
+- Aide-la à prioriser (quels bénéficiaires ou quelles tendances méritent son attention), sans jamais décider à sa place.
+- Sois concis : 3 à 6 phrases maximum, sauf si la question demande clairement plus de détail.
+
+${contexte}
+
+Question de la Responsable : "${question}"
+
+Réponds directement à sa question.
+  `.trim();
+}
+
+function construirePromptAnalyseCanton(contexte) {
+  return `
+Tu es le Conseiller Financier IA de l'application de gestion du Fonds Rotatif MMF (COMDEKS4, AJEOV Technologies), destinée à des femmes et jeunes bénéficiaires en zone rurale au Cameroun.
+
+Tu t'adresses ici à la Responsable, qui supervise plusieurs cantons et consulte la situation agrégée d'un canton précis (chaque canton a son propre membre du comité sur le terrain).
+
+Règles :
+- Réponds en français, de façon simple et claire.
+- Base-toi UNIQUEMENT sur les données réelles du canton fournies ci-dessous.
+- Structure IMPÉRATIVEMENT ta réponse en 4 sections, chacune précédée d'un titre au format "## Titre" (sur sa propre ligne), dans cet ordre exact :
+  ## Résumé
+  ## Analyse financière
+  ## Points d'attention
+  ## Recommandations
+- Chaque section fait 2 à 4 phrases maximum.
+
+${contexte}
+
+Génère l'analyse complète de ce canton, en respectant strictement les 4 sections demandées.
   `.trim();
 }
 
@@ -144,13 +226,14 @@ async function genererAnalyse(utilisateurId) {
 }
 
 /**
- * Variantes Web, réservées à la Responsable (voir conseiller_ia.routes.js) :
- * elle choisit le bénéficiaire consulté plutôt que d'interroger sa propre
- * situation — utile pendant l'instruction d'un dossier de prêt. Même
- * contexte, même prompt, même historique partagé que les fonctions
- * Mobile ci-dessus ; seule la façon de retrouver le compte change
- * (par id de bénéficiaire, via consulterCompteParId, plutôt que par
- * utilisateur connecté).
+ * Variantes Mobile pour le comité (voir conseiller_ia.routes.js) : un
+ * membre du comité choisit le bénéficiaire consulté plutôt que
+ * d'interroger sa propre situation — utile pendant l'instruction d'un
+ * dossier de prêt, restreint aux bénéficiaires de son propre canton.
+ * Même contexte, même prompt, même historique partagé que les fonctions
+ * Mobile bénéficiaire ci-dessus ; seule la façon de retrouver le compte
+ * change (par id de bénéficiaire, via consulterCompteParId, plutôt que
+ * par utilisateur connecté).
  */
 async function poserQuestionPourBeneficiaire(beneficiaireId, question) {
   const compte = await beneficiaireService.consulterCompteParId(beneficiaireId);
@@ -190,6 +273,49 @@ async function consulterHistoriquePourBeneficiaire(beneficiaireId) {
   return rows.map(ConseillerIAEchange.fromRow);
 }
 
+/**
+ * Variantes Web, réservées à la Responsable : elle consulte la
+ * situation agrégée d'un canton entier plutôt que celle d'un
+ * bénéficiaire précis (voir conseiller_ia.routes.js).
+ */
+async function poserQuestionPourCanton(cantonId, question) {
+  const donneesCanton = await beneficiaireService.consulterSituationCanton(cantonId);
+  const contexte = construireContexteCanton(donneesCanton);
+  const prompt = construirePromptCanton(contexte, question);
+
+  const reponse = await gemini.genererReponse(prompt);
+
+  const row = await conseillerIARepository.enregistrer({
+    canton_id: donneesCanton.canton.id,
+    question,
+    reponse,
+  });
+
+  return ConseillerIAEchange.fromRow(row);
+}
+
+async function genererAnalysePourCanton(cantonId) {
+  const donneesCanton = await beneficiaireService.consulterSituationCanton(cantonId);
+  const contexte = construireContexteCanton(donneesCanton);
+  const prompt = construirePromptAnalyseCanton(contexte);
+
+  const reponse = await gemini.genererReponse(prompt);
+
+  const row = await conseillerIARepository.enregistrer({
+    canton_id: donneesCanton.canton.id,
+    question: 'Analyse financière complète',
+    reponse,
+  });
+
+  return ConseillerIAEchange.fromRow(row);
+}
+
+async function consulterHistoriquePourCanton(cantonId) {
+  await beneficiaireService.consulterSituationCanton(cantonId); // vérifie que le canton existe
+  const rows = await conseillerIARepository.findByCantonId(cantonId);
+  return rows.map(ConseillerIAEchange.fromRow);
+}
+
 module.exports = {
   poserQuestion,
   consulterHistorique,
@@ -197,4 +323,7 @@ module.exports = {
   poserQuestionPourBeneficiaire,
   genererAnalysePourBeneficiaire,
   consulterHistoriquePourBeneficiaire,
+  poserQuestionPourCanton,
+  genererAnalysePourCanton,
+  consulterHistoriquePourCanton,
 };

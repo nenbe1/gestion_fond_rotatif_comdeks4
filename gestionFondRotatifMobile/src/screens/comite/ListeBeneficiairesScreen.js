@@ -1,16 +1,20 @@
 import { useCallback, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, RefreshControl, Alert } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import appelerApi from '../../api/client';
 import { couleurs } from '../../theme/couleurs';
 
 /**
  * Liste des bénéficiaires de mon canton (comité), avec Modifier
- * (âge estimé / activité) et Supprimer. Même route backend que le Web
- * (PUT/DELETE /beneficiaires/:id), réservée au comité ET à la
+ * (âge estimé / activité), Supprimer, et un accès au Conseiller IA pour
+ * appuyer l'instruction d'un dossier (même assistant que côté
+ * bénéficiaire, mais interrogé ici par le membre du comité — voir
+ * ConseillerIAComiteScreen). Même route backend que le Web pour la
+ * gestion (PUT/DELETE /beneficiaires/:id), réservée au comité ET à la
  * Responsable.
  */
 export default function ListeBeneficiairesScreen() {
+  const navigation = useNavigation();
   const [beneficiaires, setBeneficiaires] = useState([]);
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState('');
@@ -114,6 +118,12 @@ export default function ListeBeneficiairesScreen() {
                 <TouchableOpacity style={styles.boutonPrincipal} onPress={() => ouvrirEdition(item)}>
                   <Text style={styles.texteBouton}>Modifier</Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.boutonIA}
+                  onPress={() => navigation.navigate('ConseillerIAComite', { beneficiaireId: item.id, nomBeneficiaire: `${item.nom} ${item.prenom}` })}
+                >
+                  <Text style={styles.texteBouton}>🤖 Conseiller IA</Text>
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.boutonDanger} onPress={() => confirmerSuppression(item)}>
                   <Text style={styles.texteBouton}>Supprimer</Text>
                 </TouchableOpacity>
@@ -138,10 +148,11 @@ const styles = StyleSheet.create({
   infoLigne: { color: couleurs.grisTexte, fontSize: 13, marginBottom: 2 },
   libelleChamp: { color: '#666', fontSize: 12, marginTop: 6, marginBottom: 2 },
   champ: { borderWidth: 1, borderColor: couleurs.grisClair, borderRadius: 8, padding: 8, backgroundColor: couleurs.creme },
-  actions: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   boutonPrincipal: { backgroundColor: couleurs.vertFonce, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 14 },
   boutonSecondaire: { backgroundColor: couleurs.grisClair, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 14 },
   boutonDanger: { backgroundColor: couleurs.brique, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 14 },
+  boutonIA: { backgroundColor: couleurs.vertMoyen, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 14 },
   texteBouton: { color: couleurs.blanc, fontWeight: '600', fontSize: 13 },
   texteBoutonSecondaire: { color: couleurs.grisTexte, fontWeight: '600', fontSize: 13 },
 });

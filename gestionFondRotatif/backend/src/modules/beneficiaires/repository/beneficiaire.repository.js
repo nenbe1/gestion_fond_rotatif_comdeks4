@@ -97,10 +97,16 @@ async function supprimer(id, utilisateurId) {
   await db.query('DELETE FROM utilisateur WHERE id = ?', [utilisateurId]);
 }
 
+async function findCantonById(id) {
+  const [rows] = await db.query('SELECT id, nom FROM canton WHERE id = ? LIMIT 1', [id]);
+  return rows[0] || null;
+}
+
 module.exports = {
   findAll,
   findById,
   findByUtilisateurId,
+  findCantonById,
   create,
   update,
   mettreAJourStatutMMF,
