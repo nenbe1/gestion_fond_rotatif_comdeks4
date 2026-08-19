@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ResponsiveContainer, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import appelerApi, { BASE_URL } from '../api/client';
+import InfoBulleGraphique from '../components/InfoBulleGraphique';
+import { formaterMontantCourt } from '../utils/formatage';
 
 /**
  * Page Rapports — génère un nouvel instantané d'indicateurs sur une
@@ -97,6 +100,21 @@ export default function Rapports() {
       .filter((r) => r.id !== rapport.id && r.periodeFin < rapport.periodeDebut)
       .sort((a, b) => (a.periodeFin < b.periodeFin ? 1 : -1))[0] || null;
   }
+
+  /**
+   * Données pour les graphiques d'évolution — mêmes rapports déjà
+   * chargés pour la liste, triés chronologiquement (l'API les renvoie
+   * du plus récent au plus ancien, utile pour la liste mais pas pour un
+   * graphique qui doit se lire de gauche à droite dans le temps).
+   */
+  const donneesGraphique = [...rapports]
+    .sort((a, b) => (a.periodeDebut > b.periodeDebut ? 1 : -1))
+    .map((r) => ({
+      periode: r.periodeDebut,
+      'Montant financé': Number(r.montantTotalFinance),
+      'Montant remboursé': Number(r.montantTotalRembourse),
+      'Taux de remboursement': Number(r.tauxRemboursement),
+    }));
 
   function calculerEvolution(valeurActuelle, valeurPrecedente) {
     if (valeurPrecedente === 0) return null; // pas de base de comparaison sensée (division par zéro)
@@ -201,6 +219,53 @@ export default function Rapports() {
       <p className="note">
         Pour la répartition des remboursements par canton, voir <Link to="/situation-cantons">Situation par canton</Link>.
       </p>
+
+      {donneesGraphique.length > 0 && (
+        <div className="grille-graphiques-rapports">
+          <div className="carte-graphique">
+            <h2 className="titre-section-rapport">Montants financés vs remboursés</h2>
+            <p className="sous-titre-graphique">Par période de rapport, en FCFA</p>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={donneesGraphique} barGap={6} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+                <CartesianGrid vertical={false} stroke="#eef0ee" />
+                <XAxis dataKey="periode" tick={{ fontSize: 11, fill: '#888' }} axisLine={{ stroke: '#e5e5e5' }} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#888' }} axisLine={false} tickLine={false} tickFormatter={formaterMontantCourt} />
+                <Tooltip
+                  cursor={{ fill: 'rgba(44,74,58,0.05)' }}
+                  content={<InfoBulleGraphique formaterValeur={(v) => `${v.toLocaleString('fr-FR')} FCFA`} />}
+                />
+                <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" />
+                <Bar dataKey="Montant financé" fill="#2c4a3a" radius={[5, 5, 0, 0]} maxBarSize={38} />
+                <Bar dataKey="Montant remboursé" fill="#c9a24b" radius={[5, 5, 0, 0]} maxBarSize={38} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="carte-graphique">
+            <h2 className="titre-section-rapport">Évolution du taux de remboursement</h2>
+            <p className="sous-titre-graphique">Par période de rapport</p>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={donneesGraphique} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+                <CartesianGrid vertical={false} stroke="#eef0ee" />
+                <XAxis dataKey="periode" tick={{ fontSize: 11, fill: '#888' }} axisLine={{ stroke: '#e5e5e5' }} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#888' }} axisLine={false} tickLine={false} unit="%" />
+                <Tooltip
+                  cursor={{ stroke: '#c9a24b', strokeWidth: 1, strokeDasharray: '4 4' }}
+                  content={<InfoBulleGraphique formaterValeur={(v) => `${v} %`} />}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="Taux de remboursement"
+                  stroke="#2c4a3a"
+                  strokeWidth={2.5}
+                  dot={{ r: 4, fill: '#2c4a3a', strokeWidth: 0 }}
+                  activeDot={{ r: 6, fill: '#c9a24b' }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       <h2 className="titre-section-rapport">Rapports par période</h2>
 
