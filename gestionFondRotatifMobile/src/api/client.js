@@ -17,21 +17,28 @@ const BASE_URL = 'http://192.168.43.120:5000/api'; // IP locale de votre PC sur 
 /**
  * Effectue une requête vers l'API, en ajoutant automatiquement le token
  * de connexion s'il existe (stocké dans AsyncStorage après /connexion).
+ *
+ * AJOUT : si options.body est un FormData (upload de fichier, ex: photo
+ * de bénéficiaire), on n'ajoute PAS le Content-Type nous-mêmes (fetch le
+ * fait automatiquement avec le bon "boundary" multipart) et on n'essaie
+ * pas de le JSON.stringify — sinon l'upload échoue silencieusement.
+ * Le comportement JSON existant est inchangé pour tous les autres appels.
  * @param {string} chemin - ex: '/beneficiaires'
  * @param {Object} options - options standard de fetch (method, body...)
  * @throws {Error} avec le message renvoyé par le backend si la requête échoue
  */
 async function appelerApi(chemin, options = {}) {
   const token = await AsyncStorage.getItem('token');
+  const estFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
 
   const reponse = await fetch(`${BASE_URL}${chemin}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...(estFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
-    body: options.body ? JSON.stringify(options.body) : undefined,
+    body: estFormData ? options.body : (options.body ? JSON.stringify(options.body) : undefined),
   });
 
   const donnees = await reponse.json().catch(() => ({}));

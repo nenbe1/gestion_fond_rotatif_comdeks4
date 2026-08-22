@@ -5,6 +5,7 @@ const beneficiaireController = require('../controller/beneficiaire.controller');
 const { validerCreation, validerModification } = require('../validator/beneficiaire.validator');
 const { verifierToken } = require('../../../middlewares/auth.middleware');
 const { verifierHabilitation } = require('../../../middlewares/habilitation.middleware');
+const { uploadPhoto } = require('../../../middlewares/upload.middleware');
 
 router.use(verifierToken); // toutes les routes de ce module nécessitent une connexion
 
@@ -29,6 +30,7 @@ function reserverAuComiteOuResponsable(req, res, next) {
 }
 
 router.post('/', reserverAuComite, verifierHabilitation('GERER_BENEFICIAIRES'), validerCreation, beneficiaireController.creer);
+router.post('/:id/photo', reserverAuComite, verifierHabilitation('GERER_BENEFICIAIRES'), uploadPhoto.single('photo'), beneficiaireController.uploaderPhoto);
 router.get('/', beneficiaireController.consulterTous);
 router.get('/moi/compte', beneficiaireController.consulterMonCompte);
 router.get('/:id', beneficiaireController.consulterParId);

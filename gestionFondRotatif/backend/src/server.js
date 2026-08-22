@@ -1,10 +1,16 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Photos de bénéficiaires (module Bénéficiaires — upload local, pas de
+// service cloud configuré dans ce projet). Accessible en lecture via
+// /uploads/beneficiaires/<fichier>.
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Routes des modules (à brancher au fur et à mesure du developpement)
 app.use('/api/authentification', require('./modules/authentification/routes/authentification.routes'));

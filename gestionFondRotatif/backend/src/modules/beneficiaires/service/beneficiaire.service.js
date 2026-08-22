@@ -65,9 +65,42 @@ async function consulterParId(id) {
   return Beneficiaire.fromRow(row);
 }
 
-async function modifier(id, { age_estime, activite, latitude, longitude }) {
-  await consulterParId(id); // vérifie l'existence, lève 404 sinon
-  const row = await beneficiaireRepository.update(id, { age_estime, activite, latitude, longitude });
+/**
+ * AJOUT : nom, prénom, téléphone et sexe sont désormais modifiables en
+ * plus d'âge estimé/activité/localisation — jusqu'ici seule l'identité
+ * du bénéficiaire restait figée après création, ce qui empêchait de
+ * corriger une faute de saisie ou un changement de numéro. Même pattern
+ * que membres_comite.service.js : vérification d'unicité du téléphone,
+ * puis fusion avec les valeurs actuelles (?? ) pour ne jamais écraser un
+ * champ non transmis lors de l'appel à utilisateurRepository.update()
+ * (qui remplace tous les champs qu'on lui donne, sans fusion de son côté).
+ */
+async function modifier(id, { nom, prenom, telephone, sexe, age_estime, activite, latitude, longitude }) {
+  const beneficiaireActuel = await consulterParId(id); // vérifie l'existence, lève 404 sinon
+
+  if (telephone && telephone !== beneficiaireActuel.telephone) {
+    const existant = await utilisateurRepository.findByTelephone(telephone);
+    if (existant && existant.id !== beneficiaireActuel.utilisateurId) {
+      throw erreur('Un utilisateur avec ce numéro de téléphone existe déjà.', 409);
+    }
+  }
+
+  if (nom !== undefined || prenom !== undefined || telephone !== undefined || sexe !== undefined) {
+    await utilisateurRepository.update(beneficiaireActuel.utilisateurId, {
+      nom: nom ?? beneficiaireActuel.nom,
+      prenom: prenom ?? beneficiaireActuel.prenom,
+      sexe: sexe ?? beneficiaireActuel.sexe,
+      telephone: telephone ?? beneficiaireActuel.telephone,
+      email: beneficiaireActuel.email,
+    });
+  }
+
+  const row = await beneficiaireRepository.update(id, {
+    age_estime: age_estime ?? beneficiaireActuel.ageEstime,
+    activite: activite ?? beneficiaireActuel.activite,
+    latitude: latitude ?? beneficiaireActuel.latitude,
+    longitude: longitude ?? beneficiaireActuel.longitude,
+  });
   return Beneficiaire.fromRow(row);
 }
 
@@ -246,6 +279,24 @@ async function consulterSituationCanton(cantonId) {
   };
 }
 
+/**
+ * Attache/remplace la photo d'un bénéficiaire déjà créé — étape séparée
+ * de la création elle-même (voir routes) : le comité peut créer le
+ * compte sans photo sur le terrain (connexion faible, urgence...) et
+ * l'ajouter à un autre moment, sans que ça bloque quoi que ce soit.
+ * @param {number} beneficiaireId
+ * @param {string} photo - chemin relatif du fichier uploadé (ex: /uploads/beneficiaires/xxx.jpg)
+ * @throws {Error} 404 si le bénéficiaire n'existe pas
+ */
+async function mettreAJourPhoto(beneficiaireId, photo) {
+  const row = await beneficiaireRepository.findById(beneficiaireId);
+  if (!row) {
+    throw erreur('Bénéficiaire introuvable.', 404);
+  }
+  await utilisateurRepository.mettreAJourPhoto(row.utilisateur_id, photo);
+  return construireCompte(await beneficiaireRepository.findById(beneficiaireId));
+}
+
 module.exports = {
   creer,
   consulterTous,
@@ -256,4 +307,5 @@ module.exports = {
   consulterMonCompte,
   consulterCompteParId,
   consulterSituationCanton,
+  mettreAJourPhoto,
 };

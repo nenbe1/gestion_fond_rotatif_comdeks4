@@ -1,15 +1,26 @@
 import { useEffect, useState } from 'react';
-import appelerApi from '../api/client';
+import appelerApi, { BASE_URL } from '../api/client';
+
+// Le serveur sert les photos hors du préfixe /api (voir server.js,
+// express.static monté sur /uploads) — on retire donc /api de BASE_URL
+// pour reconstituer l'URL complète d'affichage d'une photo.
+const ORIGINE_SERVEUR = BASE_URL.replace(/\/api\/?$/, '');
 
 /**
  * Page Bénéficiaires — les bénéficiaires sont créés exclusivement par
  * les membres du comité, sur le Mobile (jamais depuis le Web) — pour
  * garder la traçabilité de qui a enregistré qui, sur le terrain.
  *
- * AJOUT : Modifier (âge estimé / activité) et Supprimer, accessibles
- * depuis le Web à la Responsable (et depuis le Mobile au comité — même
- * restriction de rôle côté backend). La suppression est refusée par le
- * backend si le bénéficiaire a déjà une demande ou une répartition liée.
+ * AJOUT : Modifier permet maintenant de changer l'identité complète
+ * (nom, prénom, téléphone, sexe, photo), pas seulement âge estimé et
+ * activité comme avant — corrige la même limitation que côté Mobile. La
+ * photo est aussi affichée en permanence dans la liste (pas seulement en
+ * édition) : elle sert à identifier physiquement le bénéficiaire au
+ * quotidien, pas seulement au moment de la prise de vue sur le terrain.
+ * Suppression accessible depuis le Web à la Responsable (et depuis le
+ * Mobile au comité — même restriction de rôle côté backend). La
+ * suppression est refusée par le backend si le bénéficiaire a déjà une
+ * demande ou une répartition liée.
  */
 export default function Beneficiaires() {
   const [beneficiaires, setBeneficiaires] = useState([]);
@@ -20,7 +31,9 @@ export default function Beneficiaires() {
   const [recherche, setRecherche] = useState('');
 
   const [beneficiaireEnEditionId, setBeneficiaireEnEditionId] = useState(null);
-  const [formulaireEdition, setFormulaireEdition] = useState({ age_estime: '', activite: '' });
+  const [formulaireEdition, setFormulaireEdition] = useState({ nom: '', prenom: '', telephone: '', sexe: 'F', age_estime: '', activite: '' });
+  const [nouvellePhotoFichier, setNouvellePhotoFichier] = useState(null); // File | null
+  const [apercuNouvellePhoto, setApercuNouvellePhoto] = useState(null); // URL locale de prévisualisation
   const [envoiEditionEnCours, setEnvoiEditionEnCours] = useState(false);
   const [suppressionEnCoursId, setSuppressionEnCoursId] = useState(null);
 
@@ -52,10 +65,24 @@ export default function Beneficiaires() {
 
   function ouvrirEdition(b) {
     setBeneficiaireEnEditionId(b.id);
-    setFormulaireEdition({ age_estime: b.ageEstime ?? '', activite: b.activite ?? '' });
+    setFormulaireEdition({
+      nom: b.nom ?? '', prenom: b.prenom ?? '', telephone: b.telephone ?? '', sexe: b.sexe ?? 'F',
+      age_estime: b.ageEstime ?? '', activite: b.activite ?? '',
+    });
+    setNouvellePhotoFichier(null);
+    setApercuNouvellePhoto(null);
+  }
+
+  function gererChoixPhoto(fichier) {
+    setNouvellePhotoFichier(fichier);
+    setApercuNouvellePhoto(fichier ? URL.createObjectURL(fichier) : null);
   }
 
   async function gererEnregistrementEdition(b) {
+    if (!formulaireEdition.nom.trim() || !formulaireEdition.prenom.trim() || !formulaireEdition.telephone.trim()) {
+      setErreur('Nom, prénom et téléphone sont requis.');
+      return;
+    }
     setErreur('');
     setEnvoiEditionEnCours(true);
     try {
@@ -63,7 +90,23 @@ export default function Beneficiaires() {
         method: 'PUT',
         body: { ...formulaireEdition, latitude: b.latitude, longitude: b.longitude },
       });
+
+      // La photo s'envoie à part (upload de fichier, pas du JSON) — un
+      // échec ici n'annule pas le reste de la modification, déjà
+      // enregistrée à ce stade.
+      if (nouvellePhotoFichier) {
+        try {
+          const formulaire = new FormData();
+          formulaire.append('photo', nouvellePhotoFichier);
+          await appelerApi(`/beneficiaires/${b.id}/photo`, { method: 'POST', body: formulaire });
+        } catch (err) {
+          setErreur(`Les autres informations ont été enregistrées, mais la photo n'a pas pu être envoyée : ${err.message}`);
+        }
+      }
+
       setBeneficiaireEnEditionId(null);
+      setNouvellePhotoFichier(null);
+      setApercuNouvellePhoto(null);
       await charger();
     } catch (err) {
       setErreur(err.message);
@@ -117,7 +160,7 @@ export default function Beneficiaires() {
         <table className="tableau">
           <thead>
             <tr>
-              <th>Nom</th><th>Prénom</th><th>Canton</th><th>Téléphone</th><th>Âge estimé</th><th>Activité</th><th>Statut MMF</th><th></th>
+              <th>Photo</th><th>Nom</th><th>Prénom</th><th>Sexe</th><th>Canton</th><th>Téléphone</th><th>Âge estimé</th><th>Activité</th><th>Statut MMF</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -125,10 +168,53 @@ export default function Beneficiaires() {
               <tr key={b.id}>
                 {beneficiaireEnEditionId === b.id ? (
                   <>
-                    <td>{b.nom}</td>
-                    <td>{b.prenom}</td>
+                    <td>
+                      <label className="miniature-photo-modifiable">
+                        {(apercuNouvellePhoto || b.photo) ? (
+                          <img
+                            src={apercuNouvellePhoto || `${ORIGINE_SERVEUR}${b.photo}`}
+                            alt=""
+                            className="miniature-photo"
+                          />
+                        ) : (
+                          <div className="miniature-photo-vide">👤</div>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          hidden
+                          onChange={(e) => gererChoixPhoto(e.target.files?.[0] || null)}
+                        />
+                      </label>
+                    </td>
+                    <td>
+                      <input
+                        value={formulaireEdition.nom}
+                        onChange={(e) => setFormulaireEdition({ ...formulaireEdition, nom: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        value={formulaireEdition.prenom}
+                        onChange={(e) => setFormulaireEdition({ ...formulaireEdition, prenom: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <select
+                        value={formulaireEdition.sexe}
+                        onChange={(e) => setFormulaireEdition({ ...formulaireEdition, sexe: e.target.value })}
+                      >
+                        <option value="F">F</option>
+                        <option value="M">M</option>
+                      </select>
+                    </td>
                     <td>{b.cantonNom || '—'}</td>
-                    <td>{b.telephone}</td>
+                    <td>
+                      <input
+                        value={formulaireEdition.telephone}
+                        onChange={(e) => setFormulaireEdition({ ...formulaireEdition, telephone: e.target.value })}
+                      />
+                    </td>
                     <td>
                       <input
                         type="number"
@@ -152,8 +238,16 @@ export default function Beneficiaires() {
                   </>
                 ) : (
                   <>
+                    <td>
+                      {b.photo ? (
+                        <img src={`${ORIGINE_SERVEUR}${b.photo}`} alt="" className="miniature-photo" />
+                      ) : (
+                        <div className="miniature-photo-vide">👤</div>
+                      )}
+                    </td>
                     <td>{b.nom}</td>
                     <td>{b.prenom}</td>
+                    <td>{b.sexe}</td>
                     <td>{b.cantonNom || '—'}</td>
                     <td>{b.telephone}</td>
                     <td>{b.ageEstime ?? '—'}</td>
@@ -175,7 +269,7 @@ export default function Beneficiaires() {
               </tr>
             ))}
             {beneficiairesAffiches.length === 0 && (
-              <tr><td colSpan="8" className="vide">Aucun bénéficiaire ne correspond à ces critères.</td></tr>
+              <tr><td colSpan="10" className="vide">Aucun bénéficiaire ne correspond à ces critères.</td></tr>
             )}
           </tbody>
         </table>

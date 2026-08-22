@@ -18,11 +18,19 @@ function validerCreation(req, res, next) {
 }
 
 function validerModification(req, res, next) {
-  const { latitude, longitude } = req.body;
+  const { latitude, longitude, nom, prenom, telephone, sexe } = req.body;
   const erreurs = [];
 
   if (latitude !== undefined && (latitude < -90 || latitude > 90)) erreurs.push('Latitude invalide.');
   if (longitude !== undefined && (longitude < -180 || longitude > 180)) erreurs.push('Longitude invalide.');
+
+  // AJOUT : identité modifiable (nom, prénom, téléphone, sexe) — tous
+  // optionnels ici (le comité peut ne changer qu'âge/activité comme
+  // avant), mais s'ils sont fournis ils doivent être valides.
+  if (nom !== undefined && !nom.trim()) erreurs.push('Le nom ne peut pas être vide.');
+  if (prenom !== undefined && !prenom.trim()) erreurs.push('Le prénom ne peut pas être vide.');
+  if (telephone !== undefined && !telephone.trim()) erreurs.push('Le téléphone ne peut pas être vide.');
+  if (sexe !== undefined && !['F', 'M'].includes(sexe)) erreurs.push('Sexe invalide (F ou M).');
 
   if (erreurs.length > 0) {
     return res.status(400).json({ erreurs });

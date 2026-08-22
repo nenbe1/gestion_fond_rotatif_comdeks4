@@ -23,11 +23,23 @@ function reserverAResponsableOuHabilite(req, res, next) {
   next();
 }
 
+// CORRECTION : POST /reference/cantons n'avait AUCUNE restriction —
+// n'importe quel compte connecté pouvait créer un canton. C'est une
+// donnée de référence (module Paramétrage), au même titre que
+// programme/vague/fond_rotatif — réservée à la Responsable comme eux,
+// pas au comité (qui gère des bénéficiaires, pas la liste des cantons).
+function reserverAResponsable(req, res, next) {
+  if (req.role !== 'RESPONSABLE') {
+    return res.status(403).json({ message: 'Cette action est réservée à la Responsable.' });
+  }
+  next();
+}
+
 // Routes de référence à déclarer AVANT /:id (sinon Express interprète
 // "reference" comme une valeur de :id).
 router.get('/reference/fonctions', membreComiteController.listerFonctions);
 router.get('/reference/cantons', membreComiteController.listerCantons);
-router.post('/reference/cantons', membreComiteController.creerCanton);
+router.post('/reference/cantons', reserverAResponsable, membreComiteController.creerCanton);
 
 router.post('/', reserverAResponsableOuHabilite, verifierHabilitation('GERER_MEMBRES_COMITE'), validerCreation, membreComiteController.creer);
 router.get('/', membreComiteController.consulterTous);

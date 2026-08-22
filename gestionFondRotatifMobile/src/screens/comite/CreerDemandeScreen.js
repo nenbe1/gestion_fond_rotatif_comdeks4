@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Image } from 'react-native';
+import * as Location from 'expo-location';
 import appelerApi from '../../api/client';
 import { couleurs } from '../../theme/couleurs';
+import { choisirPhoto } from '../../utils/choisirPhoto';
 
 const FORMULAIRE_VIDE = {
   vague_id: '', domaine_id: '', objet_demande: '', montant_demande: '',
@@ -29,6 +31,9 @@ export default function CreerDemandeScreen({ navigation }) {
   const [beneficiairesPrevus, setBeneficiairesPrevus] = useState([]); // [{ type: 'existant', id, label } | { type: 'libre', label }]
   const [modeAjout, setModeAjout] = useState(null); // null | 'existant' | 'libre'
   const [nouveauBeneficiaire, setNouveauBeneficiaire] = useState({ nom: '', prenom: '', sexe: 'F', telephone: '', age_estime: '', activite: '' });
+  const [photo, setPhoto] = useState(null); // { uri, type, name } | null — optionnelle
+  const [localisation, setLocalisation] = useState(null); // { latitude, longitude } | null — optionnelle
+  const [localisationEnCours, setLocalisationEnCours] = useState(false);
   const [creationEnCours, setCreationEnCours] = useState(false);
 
   useEffect(() => {
@@ -62,6 +67,40 @@ export default function CreerDemandeScreen({ navigation }) {
   }
 
   /**
+   * Propose caméra ou galerie (voir utils/choisirPhoto.js) — pas de
+   * capture forcée en direct, le comité peut réutiliser une photo déjà
+   * prise. Optionnelle : peut être ignorée sans bloquer la création.
+   */
+  async function prendrePhoto() {
+    const fichier = await choisirPhoto();
+    if (fichier) setPhoto(fichier);
+  }
+
+  /**
+   * Un seul bouton, une seule position — pas de saisie manuelle de
+   * coordonnées (trop lent et source d'erreur sur le terrain).
+   * Précision "Balanced" plutôt que "High" : nettement plus rapide à
+   * obtenir un point GPS, largement suffisant pour situer un bénéficiaire
+   * à l'échelle d'un canton. Optionnelle comme la photo.
+   */
+  async function localiser() {
+    const permission = await Location.requestForegroundPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission requise', "L'accès à la position est nécessaire pour enregistrer la localisation du bénéficiaire.");
+      return;
+    }
+    setLocalisationEnCours(true);
+    try {
+      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      setLocalisation({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+    } catch {
+      Alert.alert('Erreur', "Impossible d'obtenir la position actuelle. Réessayez, ou continuez sans localisation.");
+    } finally {
+      setLocalisationEnCours(false);
+    }
+  }
+
+  /**
    * Crée réellement le compte du bénéficiaire (pas juste un nom en texte
    * libre) — c'est la seule façon d'enregistrer un nouveau bénéficiaire
    * dans l'app : au moment où le comité le propose dans une demande. Un
@@ -86,11 +125,29 @@ export default function CreerDemandeScreen({ navigation }) {
           mot_de_passe: motDePasseParDefaut,
           age_estime: age_estime ? Number(age_estime) : undefined,
           activite: activite.trim() || undefined,
+          latitude: localisation?.latitude,
+          longitude: localisation?.longitude,
         },
       });
       const b = donnees.beneficiaire;
+
+      // La photo s'envoie à part (upload de fichier, pas du JSON) — un
+      // échec ici n'annule pas la création du compte, déjà réussie à ce
+      // stade : le comité pourra ajouter la photo plus tard si besoin.
+      if (photo) {
+        try {
+          const formulaire = new FormData();
+          formulaire.append('photo', photo);
+          await appelerApi(`/beneficiaires/${b.id}/photo`, { method: 'POST', body: formulaire });
+        } catch (err) {
+          Alert.alert('Photo non envoyée', `Le compte a bien été créé, mais la photo n'a pas pu être envoyée : ${err.message}`);
+        }
+      }
+
       setBeneficiairesPrevus([...beneficiairesPrevus, { type: 'existant', id: b.id, label: `${b.nom} ${b.prenom}` }]);
       setNouveauBeneficiaire({ nom: '', prenom: '', sexe: 'F', telephone: '', age_estime: '', activite: '' });
+      setPhoto(null);
+      setLocalisation(null);
       setModeAjout(null);
       Alert.alert(
         'Compte créé',
@@ -255,8 +312,30 @@ export default function CreerDemandeScreen({ navigation }) {
           <TextInput style={styles.champ} keyboardType="numeric" value={nouveauBeneficiaire.age_estime} onChangeText={(t) => setNouveauBeneficiaire({ ...nouveauBeneficiaire, age_estime: t })} placeholder="Ex : 34" />
           <Text style={styles.libelleChamp}>Activité</Text>
           <TextInput style={styles.champ} value={nouveauBeneficiaire.activite} onChangeText={(t) => setNouveauBeneficiaire({ ...nouveauBeneficiaire, activite: t })} placeholder="Ex : maraîchage, élevage de volailles..." />
+
+          {/* Photo et localisation : deux étapes optionnelles, volontairement
+              compactes et rapides — le comité peut les ignorer sans que ça
+              bloque la création du compte (connexion faible, urgence...). */}
+          <Text style={styles.libelleChamp}>Photo et localisation (facultatif)</Text>
+          <View style={styles.rangee2Colonnes}>
+            <TouchableOpacity style={styles.boutonOptionnel} onPress={prendrePhoto}>
+              {photo ? (
+                <Image source={{ uri: photo.uri }} style={styles.miniaturePhoto} />
+              ) : (
+                <Text style={styles.texteBoutonOptionnel}>📷 Prendre une photo</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.boutonOptionnel} onPress={localiser} disabled={localisationEnCours}>
+              {localisationEnCours ? (
+                <ActivityIndicator size="small" color={couleurs.vertFonce} />
+              ) : (
+                <Text style={styles.texteBoutonOptionnel}>{localisation ? '📍 Position enregistrée' : '📍 Localiser'}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
           <View style={styles.actionsFormulaire}>
-            <TouchableOpacity style={styles.boutonAnnuler} onPress={() => { setModeAjout(null); setNouveauBeneficiaire({ nom: '', prenom: '', sexe: 'F', telephone: '' }); }}>
+            <TouchableOpacity style={styles.boutonAnnuler} onPress={() => { setModeAjout(null); setNouveauBeneficiaire({ nom: '', prenom: '', sexe: 'F', telephone: '' }); setPhoto(null); setLocalisation(null); }}>
               <Text style={styles.texteBoutonAnnuler}>Annuler</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.boutonValider} onPress={creerEtAjouterBeneficiaire} disabled={creationEnCours}>
@@ -292,6 +371,12 @@ const styles = StyleSheet.create({
   retirer: { color: couleurs.brique, fontSize: 16, paddingHorizontal: 8 },
   boutonSecondaire: { flex: 1, borderWidth: 1, borderColor: couleurs.vertMoyen, borderRadius: 8, padding: 10, alignItems: 'center', marginTop: 8 },
   texteBoutonSecondaire: { color: couleurs.vertMoyen, fontSize: 12, fontWeight: '600' },
+  boutonOptionnel: {
+    flex: 1, borderWidth: 1, borderColor: couleurs.grisClair, borderStyle: 'dashed', borderRadius: 8,
+    padding: 10, alignItems: 'center', justifyContent: 'center', minHeight: 44,
+  },
+  texteBoutonOptionnel: { color: couleurs.grisTexte, fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  miniaturePhoto: { width: 40, height: 40, borderRadius: 6 },
   formulaireAjout: { backgroundColor: couleurs.blanc, borderRadius: 10, padding: 14, marginTop: 10 },
   optionBeneficiaire: { padding: 10, borderRadius: 6, backgroundColor: couleurs.creme, marginBottom: 4 },
   annulerAjout: { color: couleurs.brique, textAlign: 'center', marginTop: 8, fontSize: 13 },

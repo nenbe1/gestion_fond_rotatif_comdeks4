@@ -79,4 +79,22 @@ async function consulterMonCompte(req, res) {
   }
 }
 
-module.exports = { creer, consulterTous, consulterParId, modifier, supprimer, recalculerStatut, consulterMonCompte };
+/**
+ * POST /api/beneficiaires/:id/photo — upload de la photo (multipart,
+ * champ "photo", voir upload.middleware.js et beneficiaire.routes.js).
+ * req.file est fourni par multer ; absent → aucune photo envoyée.
+ */
+async function uploaderPhoto(req, res) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'Aucune photo reçue (champ "photo" attendu).' });
+    }
+    const cheminPhoto = `/uploads/beneficiaires/${req.file.filename}`;
+    const compte = await beneficiaireService.mettreAJourPhoto(req.params.id, cheminPhoto);
+    res.status(200).json({ compte });
+  } catch (erreur) {
+    res.status(erreur.statusCode || 500).json({ message: erreur.message });
+  }
+}
+
+module.exports = { creer, consulterTous, consulterParId, modifier, supprimer, recalculerStatut, consulterMonCompte, uploaderPhoto };

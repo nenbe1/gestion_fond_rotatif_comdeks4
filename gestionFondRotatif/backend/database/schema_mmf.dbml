@@ -24,8 +24,9 @@ Table canton {
   nom varchar(100) [unique, not null]
   latitude decimal(10,7)
   longitude decimal(10,7)
+  actif boolean [not null, default: true]
 
-  Note: 'Donnee de reference -- module Parametrage'
+  Note: 'Donnee de reference -- module Parametrage. actif : desactiver plutot que supprimer un canton deja utilise'
 }
 
 Table fonction {
@@ -180,8 +181,9 @@ Table remboursement_beneficiaire {
   montant decimal(15,2) [not null]
   date_versement date [not null]
   observation text
+  statut varchar(20) [not null, default: 'EnAttente', note: 'EnAttente, Confirme, Rejete -- double validation : le Tresorier confirme apres verification']
 
-  Note: 'Niveau individuel : fait deja accompli, pas de circuit de Validation'
+  Note: 'Niveau individuel : le comite enregistre, seul le Tresorier confirme (voir habilitation CONFIRMER_REMBOURSEMENT) -- pas de circuit de Validation a 3 niveaux'
 }
 
 Table remboursement_collectif {
@@ -192,14 +194,16 @@ Table remboursement_collectif {
   date_paiement date
   montant_prevu decimal(15,2) [not null]
   montant_verse decimal(15,2)
-  statut varchar(20) [not null, default: 'EnAttente', note: 'EnAttente, Confirme, Rejete, EnRetard']
+  statut varchar(20) [not null, default: 'EnAttente', note: 'EnAttente, EnAttenteResponsable, Confirme, Rejete, EnRetard']
   observation text
+  rappel_envoye boolean [not null, default: false, note: 'rappel a J-3']
+  rappel_jour_j_envoye boolean [not null, default: false, note: 'rappel le jour meme de l\'echeance']
 
   indexes {
     (financement_id, numero_semaine) [unique]
   }
 
-  Note: 'Niveau collectif (comite -> fonds) : protege par le circuit de Validation a 3 niveaux'
+  Note: 'Niveau collectif (comite -> fonds) : circuit de Validation a 3 niveaux, puis EnAttenteResponsable -- decision finale de la Responsable avant credit reel du fonds (meme principe que DemandeFinancement)'
 }
 
 Table validation {
@@ -256,4 +260,65 @@ Table demande_beneficiaire_prevu {
   nom_libre varchar(150) [note: 'saisie libre si pas encore enregistre -- un seul des deux renseigne']
 
   Note: 'Liste des beneficiaires vises fournie par le comite au moment de la demande, sans montant a ce stade'
+}
+
+Table conseiller_ia_historique {
+  id bigint [pk, increment]
+  beneficiaire_id bigint [not null, ref: > beneficiaire.id]
+  question text [not null]
+  reponse text [not null]
+  date_creation timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Module 5 -- historique des echanges avec le Conseiller IA (Gemini), cote Mobile beneficiaire'
+}
+
+Table groupe_mmf {
+  id bigint [pk, increment]
+  nom varchar(150) [not null]
+  canton_id bigint [not null, ref: > canton.id]
+  responsable_beneficiaire_id bigint [ref: > beneficiaire.id, note: 'doit etre un membre actif du groupe, verifie applicativement']
+  date_creation date [not null]
+  actif boolean [not null, default: true]
+
+  Note: 'Module 2 -- groupe de solidarite rattache a un canton, toujours celui du membre du comite qui le cree'
+}
+
+Table adhesion_groupe {
+  id bigint [pk, increment]
+  groupe_mmf_id bigint [not null, ref: > groupe_mmf.id]
+  beneficiaire_id bigint [not null, ref: > beneficiaire.id]
+  date_adhesion date [not null]
+  actif boolean [not null, default: true, note: 'false = a quitte le groupe, jamais supprime']
+
+  indexes {
+    (groupe_mmf_id, beneficiaire_id) [unique]
+  }
+
+  Note: 'Un beneficiaire peut appartenir a plusieurs groupes -- une seule ligne par binome, reactivee si besoin'
+}
+
+Table cotisation {
+  id bigint [pk, increment]
+  code_cotisation varchar(30) [unique, not null]
+  groupe_mmf_id bigint [not null, ref: > groupe_mmf.id]
+  beneficiaire_id bigint [not null, ref: > beneficiaire.id]
+  montant decimal(15,2) [not null]
+  date_versement date [not null]
+  observation text
+  enregistre_par bigint [not null, ref: > membre_comite.id]
+  annulee boolean [not null, default: false]
+  motif_annulation varchar(255) [note: 'rempli seulement si annulee = true']
+
+  Note: 'Module 3 -- versement individuel et libre (aucune periodicite imposee) dans un groupe dont le beneficiaire est membre actif'
+}
+
+Table notification {
+  id bigint [pk, increment]
+  utilisateur_id bigint [not null, ref: > utilisateur.id]
+  titre varchar(150) [not null]
+  message text [not null]
+  lue boolean [not null, default: false]
+  date_creation timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  Note: 'Centre de notifications interne, genere automatiquement par le systeme a certains evenements'
 }

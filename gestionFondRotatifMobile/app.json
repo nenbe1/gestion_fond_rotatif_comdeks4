@@ -16,6 +16,21 @@
     "ios": {
       "bundleIdentifier": "com.ajeov.fondrotatifmmf",
       "supportsTablet": false
-    }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "L'application a besoin d'accéder à l'appareil photo pour prendre la photo du bénéficiaire.",
+          "photosPermission": "L'application a besoin d'accéder à vos photos pour choisir la photo du bénéficiaire dans la galerie."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "L'application a besoin d'accéder à votre position pour enregistrer la localisation du bénéficiaire."
+        }
+      ]
+    ]
   }
 }

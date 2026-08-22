@@ -28,6 +28,14 @@ async function update(id, { nom, prenom, sexe, telephone, email }) {
   return findById(id);
 }
 
+// AJOUT : mise à jour de la seule photo — fonction dédiée plutôt que de
+// toucher update() ci-dessus, qui gère les champs texte du profil et ne
+// doit pas dépendre d'un fichier uploadé (voir upload.middleware.js).
+async function mettreAJourPhoto(id, photo) {
+  await db.query('UPDATE utilisateur SET photo = ? WHERE id = ?', [photo, id]);
+  return findById(id);
+}
+
 // AJOUT : suppression d'un utilisateur — appelée via une connexion de
 // transaction, après suppression de la ligne fille (beneficiaire,
 // membre_comite, autorite...) qui la référence.
@@ -35,4 +43,4 @@ async function supprimer(executeur, id) {
   await executeur.query('DELETE FROM utilisateur WHERE id = ?', [id]);
 }
 
-module.exports = { findByTelephone, findById, create, update, supprimer };
+module.exports = { findByTelephone, findById, create, update, mettreAJourPhoto, supprimer };
