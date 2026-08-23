@@ -1,0 +1,1641 @@
+openapi: 3.0.3
+info:
+  title: API Fonds Rotatif MMF — COMDEKS4
+  description: |
+    API REST de gestion du Fonds Rotatif MMF (Mutual Micro Fund) des femmes
+    et jeunes bénéficiaires, projet COMDEKS4 (AJEOV Technologies).
+
+    ## Authentification
+    Toutes les routes (sauf `/authentification/inscription` et
+    `/authentification/connexion`) nécessitent un token JWT, obtenu via
+    `/authentification/connexion` et transmis dans l'en-tête
+    `Authorization: Bearer <token>`. Le token expire après 7 jours.
+
+    ## Rôles applicatifs
+    - **RESPONSABLE** — supervision globale, Web uniquement.
+    - **MEMBRE_COMITE** — gestion de terrain, Mobile uniquement, restreint
+      à son propre canton pour les bénéficiaires.
+    - **BENEFICIAIRE** — consultation de sa propre situation, Mobile
+      uniquement.
+    - **AUTORITE** — consultation de statistiques filtrées selon un
+      critère (domaine, sexe, ou âge maximum), Web.
+
+    Certaines actions sont en plus soumises à un système d'habilitations
+    par fonction (module Paramétrage), en complément du contrôle de rôle.
+  version: '1.0.0'
+  contact:
+    name: AJEOV Technologies — Projet COMDEKS4
+
+servers:
+  - url: http://localhost:5000/api
+    description: Serveur de développement local
+
+tags:
+  - name: Authentification
+  - name: Bénéficiaires
+  - name: Membres du comité
+  - name: Demandes de financement
+  - name: Validations
+  - name: Financements
+  - name: Attributions
+  - name: Remboursements
+  - name: Domaines
+  - name: Vagues
+  - name: Programmes
+  - name: Fonds rotatif
+  - name: Rapports
+  - name: Autorités
+  - name: Paramètres
+  - name: Paramétrage (cantons, fonctions, habilitations)
+  - name: Administration
+  - name: Conseiller IA
+  - name: Groupes MMF
+  - name: Cotisations
+  - name: Notifications
+
+security:
+  - bearerAuth: []
+
+paths:
+  # =====================================================================
+  # AUTHENTIFICATION — seules routes publiques (pas de token requis)
+  # =====================================================================
+  /authentification/inscription:
+    post:
+      tags: [Authentification]
+      summary: Créer un compte (auto-inscription, cas d'usage limité)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nom, prenom, sexe, telephone, mot_de_passe]
+              properties:
+                nom: { type: string, minLength: 2 }
+                prenom: { type: string, minLength: 2 }
+                sexe: { type: string, enum: [M, F] }
+                telephone: { type: string, pattern: '^\+?[0-9]{8,15}$' }
+                mot_de_passe: { type: string, minLength: 6, format: password }
+      responses:
+        '201': { description: Compte créé, token renvoyé, content: { application/json: { schema: { $ref: '#/components/schemas/ReponseAuth' } } } }
+        '400': { $ref: '#/components/responses/ErreurValidation' }
+
+  /authentification/connexion:
+    post:
+      tags: [Authentification]
+      summary: Se connecter (téléphone + mot de passe)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [telephone, mot_de_passe]
+              properties:
+                telephone: { type: string }
+                mot_de_passe: { type: string, format: password }
+      responses:
+        '200': { description: Connexion réussie, token renvoyé, content: { application/json: { schema: { $ref: '#/components/schemas/ReponseAuth' } } } }
+        '400': { $ref: '#/components/responses/ErreurValidation' }
+        '401': { description: Identifiants incorrects }
+        '403': { description: Compte désactivé }
+
+  # =====================================================================
+  # BÉNÉFICIAIRES
+  # =====================================================================
+  /beneficiaires:
+    post:
+      tags: [Bénéficiaires]
+      summary: Créer un bénéficiaire
+      description: Réservé au comité (rôle MEMBRE_COMITE + habilitation GERER_BENEFICIAIRES) — jamais depuis le Web.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nom, prenom, sexe, telephone, mot_de_passe]
+              properties:
+                nom: { type: string, minLength: 2 }
+                prenom: { type: string, minLength: 2 }
+                sexe: { type: string, enum: [M, F] }
+                telephone: { type: string, pattern: '^\+?[0-9]{8,15}$' }
+                mot_de_passe: { type: string, minLength: 6 }
+                age_estime: { type: integer, nullable: true }
+                activite: { type: string, nullable: true }
+                latitude: { type: number, format: double, minimum: -90, maximum: 90, nullable: true }
+                longitude: { type: number, format: double, minimum: -180, maximum: 180, nullable: true }
+      responses:
+        '201': { description: Bénéficiaire créé, content: { application/json: { schema: { type: object, properties: { beneficiaire: { $ref: '#/components/schemas/Beneficiaire' } } } } } }
+        '400': { $ref: '#/components/responses/ErreurValidation' }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+    get:
+      tags: [Bénéficiaires]
+      summary: Lister les bénéficiaires
+      description: Un membre du comité ne voit que les bénéficiaires de son propre canton ; la Responsable voit tout.
+      parameters:
+        - name: cantonId
+          in: query
+          schema: { type: integer }
+          description: Filtre optionnel par canton (Responsable uniquement, ignoré pour le comité)
+      responses:
+        '200': { description: Liste des bénéficiaires, content: { application/json: { schema: { type: object, properties: { beneficiaires: { type: array, items: { $ref: '#/components/schemas/Beneficiaire' } } } } } } }
+
+  /beneficiaires/{id}/photo:
+    post:
+      tags: [Bénéficiaires]
+      summary: Uploader/remplacer la photo d'un bénéficiaire
+      description: Étape séparée de la création, optionnelle. Réservé au comité.
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [photo]
+              properties:
+                photo: { type: string, format: binary, description: 'JPEG, PNG ou WEBP, 3 Mo max' }
+      responses:
+        '200': { description: Photo enregistrée, content: { application/json: { schema: { type: object, properties: { compte: { $ref: '#/components/schemas/Beneficiaire' } } } } } }
+        '400': { description: 'Aucune photo reçue, ou format non supporté' }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /beneficiaires/moi/compte:
+    get:
+      tags: [Bénéficiaires]
+      summary: Consulter mon propre compte (bénéficiaire connecté)
+      responses:
+        '200': { description: Compte complet (infos + financements + situation), content: { application/json: { schema: { $ref: '#/components/schemas/CompteBeneficiaire' } } } }
+        '403': { description: "L'utilisateur connecté n'est pas un bénéficiaire" }
+
+  /beneficiaires/{id}:
+    get:
+      tags: [Bénéficiaires]
+      summary: Consulter un bénéficiaire par id
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Détail du bénéficiaire, content: { application/json: { schema: { type: object, properties: { beneficiaire: { $ref: '#/components/schemas/Beneficiaire' } } } } } }
+        '404': { $ref: '#/components/responses/ErreurNonTrouve' }
+    put:
+      tags: [Bénéficiaires]
+      summary: Modifier un bénéficiaire
+      description: Réservé au comité (qui l'a créé) ou à la Responsable. Tous les champs sont optionnels — seuls les champs fournis sont modifiés.
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nom: { type: string }
+                prenom: { type: string }
+                telephone: { type: string }
+                sexe: { type: string, enum: [M, F] }
+                age_estime: { type: integer }
+                activite: { type: string }
+                latitude: { type: number }
+                longitude: { type: number }
+      responses:
+        '200': { description: Bénéficiaire modifié, content: { application/json: { schema: { type: object, properties: { beneficiaire: { $ref: '#/components/schemas/Beneficiaire' } } } } } }
+        '400': { $ref: '#/components/responses/ErreurValidation' }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+        '409': { description: 'Ce numéro de téléphone est déjà utilisé par un autre compte' }
+    delete:
+      tags: [Bénéficiaires]
+      summary: Supprimer définitivement un bénéficiaire
+      description: Réservé au comité ou à la Responsable. Suppression réelle (pas de désactivation).
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '204': { description: Supprimé }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+        '404': { $ref: '#/components/responses/ErreurNonTrouve' }
+
+  /beneficiaires/{id}/recalculer-statut:
+    post:
+      tags: [Bénéficiaires]
+      summary: Recalculer le statut MMF d'un bénéficiaire
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Statut recalculé }
+
+  # =====================================================================
+  # MEMBRES DU COMITÉ
+  # =====================================================================
+  /membres-comite/reference/fonctions:
+    get:
+      tags: [Membres du comité]
+      summary: Liste de référence des fonctions du comité
+      responses:
+        '200': { description: 'Liste (Président, Vice-président, Secrétaire, Trésorier, Commissaire aux comptes, Membre)' }
+
+  /membres-comite/reference/cantons:
+    get:
+      tags: [Membres du comité]
+      summary: Liste de référence des cantons
+      responses:
+        '200': { description: Liste des cantons }
+    post:
+      tags: [Membres du comité]
+      summary: Créer un canton
+      description: Réservé à la Responsable.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nom]
+              properties:
+                nom: { type: string }
+                latitude: { type: number }
+                longitude: { type: number }
+      responses:
+        '201': { description: Canton créé }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /membres-comite:
+    post:
+      tags: [Membres du comité]
+      summary: Créer un membre du comité
+      description: Réservé à la Responsable ou à un membre habilité GERER_MEMBRES_COMITE.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nom, prenom, sexe, telephone, mot_de_passe, fonction_id, canton_id]
+              properties:
+                nom: { type: string }
+                prenom: { type: string }
+                sexe: { type: string, enum: [M, F] }
+                telephone: { type: string }
+                mot_de_passe: { type: string, minLength: 6 }
+                fonction_id: { type: integer }
+                canton_id: { type: integer }
+      responses:
+        '201': { description: Membre créé }
+        '400': { $ref: '#/components/responses/ErreurValidation' }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+    get:
+      tags: [Membres du comité]
+      summary: Lister les membres du comité
+      responses:
+        '200': { description: Liste des membres du comité }
+
+  /membres-comite/{id}:
+    get:
+      tags: [Membres du comité]
+      summary: Consulter un membre du comité par id
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Détail du membre }
+    put:
+      tags: [Membres du comité]
+      summary: Modifier un membre du comité
+      description: fonction_id et canton_id restent obligatoires ; nom/prénom/sexe/téléphone optionnels.
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fonction_id, canton_id]
+              properties:
+                fonction_id: { type: integer }
+                canton_id: { type: integer }
+                nom: { type: string }
+                prenom: { type: string }
+                sexe: { type: string, enum: [M, F] }
+                telephone: { type: string }
+      responses:
+        '200': { description: Membre modifié }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  # =====================================================================
+  # DEMANDES DE FINANCEMENT
+  # =====================================================================
+  /demandes-financement:
+    post:
+      tags: [Demandes de financement]
+      summary: Créer une demande de financement
+      description: Réservé au comité (rôle MEMBRE_COMITE + habilitation CREER_DEMANDE_FINANCEMENT).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [vague_id, domaine_id, objet_demande, montant_demande]
+              properties:
+                vague_id: { type: integer }
+                domaine_id: { type: integer }
+                objet_demande: { type: string, minLength: 5 }
+                montant_demande: { type: number, minimum: 0.01 }
+                nb_femmes_benef: { type: integer, minimum: 0 }
+                nb_hommes_benef: { type: integer, minimum: 0 }
+                beneficiaires_prevus:
+                  type: array
+                  items:
+                    type: object
+                    description: 'Exactement un des deux champs par élément : beneficiaire_id (compte existant) ou nom_libre (pas encore de compte)'
+                    properties:
+                      beneficiaire_id: { type: integer, nullable: true }
+                      nom_libre: { type: string, nullable: true }
+      responses:
+        '201': { description: Demande créée, lance le circuit de validation }
+        '400': { $ref: '#/components/responses/ErreurValidation' }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+    get:
+      tags: [Demandes de financement]
+      summary: Lister les demandes de financement
+      responses:
+        '200': { description: Liste des demandes }
+
+  /demandes-financement/{id}:
+    get:
+      tags: [Demandes de financement]
+      summary: Consulter une demande par id
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Détail de la demande }
+
+  /demandes-financement/{id}/beneficiaires-prevus:
+    get:
+      tags: [Demandes de financement]
+      summary: Lister les bénéficiaires prévus pour une demande
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Liste des bénéficiaires prévisionnels }
+
+  /demandes-financement/{id}/decision-responsable:
+    put:
+      tags: [Demandes de financement]
+      summary: Décision finale de la Responsable sur une demande déjà validée par le circuit du comité
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision: { type: string, enum: [Approuve, Rejete] }
+      responses:
+        '200': { description: Décision enregistrée }
+
+  # =====================================================================
+  # VALIDATIONS (circuit à 3 niveaux : Trésorier → Commissaire → Président)
+  # =====================================================================
+  /validations/demande/{demandeId}:
+    get:
+      tags: [Validations]
+      summary: Consulter le circuit de validation d'une demande de financement
+      parameters:
+        - name: demandeId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Les 3 étapes du circuit avec leur statut }
+
+  /validations/remboursement-collectif/{remboursementCollectifId}:
+    get:
+      tags: [Validations]
+      summary: Consulter le circuit de validation d'un remboursement collectif
+      parameters:
+        - name: remboursementCollectifId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Les 3 étapes du circuit avec leur statut }
+
+  /validations/{id}/traiter:
+    put:
+      tags: [Validations]
+      summary: Traiter une étape du circuit (Trésorier, Commissaire ou Président)
+      description: "Le membre connecté doit avoir la fonction correspondant exactement au niveau de l'étape."
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision: { type: string, enum: [Approuve, Rejete] }
+                commentaire: { type: string, nullable: true }
+      responses:
+        '200': { description: 'Étape traitée — fait avancer le circuit ou le clôt si rejeté' }
+        '400': { $ref: '#/components/responses/ErreurValidation' }
+        '403': { description: "La fonction du membre connecté ne correspond pas au niveau de l'étape" }
+
+  # =====================================================================
+  # FINANCEMENTS
+  # =====================================================================
+  /financements:
+    get:
+      tags: [Financements]
+      summary: Lister les financements
+      responses:
+        '200': { description: Liste des financements }
+
+  /financements/{id}:
+    get:
+      tags: [Financements]
+      summary: Consulter un financement par id
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Détail du financement }
+    put:
+      tags: [Financements]
+      summary: Modifier un financement
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Financement modifié }
+    delete:
+      tags: [Financements]
+      summary: Supprimer un financement
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '204': { description: Supprimé }
+
+  # =====================================================================
+  # ATTRIBUTIONS (répartition d'un financement entre bénéficiaires)
+  # =====================================================================
+  /attributions:
+    post:
+      tags: [Attributions]
+      summary: Attribuer une part d'un financement à un bénéficiaire
+      description: Réservé au comité.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [financement_id, beneficiaire_id, montant_attribue]
+              properties:
+                financement_id: { type: integer }
+                beneficiaire_id: { type: integer }
+                montant_attribue: { type: number, minimum: 0.01 }
+      responses:
+        '201': { description: Attribution créée }
+        '400': { $ref: '#/components/responses/ErreurValidation' }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /attributions/financement/{financementId}:
+    get:
+      tags: [Attributions]
+      summary: Lister les attributions d'un financement
+      parameters:
+        - name: financementId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Liste des attributions }
+
+  /attributions/{id}:
+    get:
+      tags: [Attributions]
+      summary: Consulter une attribution par id
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Détail de l'attribution }
+
+  /attributions/{id}/reste-a-payer:
+    get:
+      tags: [Attributions]
+      summary: Reste à payer sur cette attribution (majoration incluse)
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Montant restant dû }
+
+  # =====================================================================
+  # REMBOURSEMENTS
+  # =====================================================================
+  /remboursements/individuel:
+    post:
+      tags: [Remboursements]
+      summary: Enregistrer un remboursement individuel
+      description: Réservé au comité — le bénéficiaire remet l'argent physiquement, le comité l'enregistre.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [attribution_financement_id, montant, date_versement]
+              properties:
+                attribution_financement_id: { type: integer }
+                montant: { type: number, minimum: 0.01 }
+                date_versement: { type: string, format: date }
+      responses:
+        '201': { description: 'Remboursement enregistré, statut EnAttente' }
+        '400': { $ref: '#/components/responses/ErreurValidation' }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /remboursements/individuel/{id}/confirmer:
+    put:
+      tags: [Remboursements]
+      summary: Confirmer un remboursement individuel (double validation)
+      description: Soumis au système d'habilitations (CONFIRMER_REMBOURSEMENT).
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Remboursement confirmé, compte désormais dans la situation financière }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /remboursements/individuel/{id}/rejeter:
+    put:
+      tags: [Remboursements]
+      summary: Rejeter un remboursement individuel
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Remboursement rejeté }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /remboursements/individuel/attribution/{attributionId}:
+    get:
+      tags: [Remboursements]
+      summary: Lister les remboursements individuels d'une attribution
+      parameters:
+        - name: attributionId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Liste des remboursements individuels }
+
+  /remboursements/collectif:
+    post:
+      tags: [Remboursements]
+      summary: Créer une échéance de remboursement collectif
+      description: Réservé au comité.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [financement_id, numero_semaine, date_prevue, montant_prevu]
+              properties:
+                financement_id: { type: integer }
+                numero_semaine: { type: integer, minimum: 1 }
+                date_prevue: { type: string, format: date }
+                montant_prevu: { type: number, minimum: 0.01 }
+      responses:
+        '201': { description: Échéance créée }
+        '400': { $ref: '#/components/responses/ErreurValidation' }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /remboursements/collectif/en-attente-responsable:
+    get:
+      tags: [Remboursements]
+      summary: Lister les remboursements collectifs en attente de décision de la Responsable
+      description: Réservé à la Responsable.
+      responses:
+        '200': { description: Liste en attente }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /remboursements/collectif/financement/{financementId}:
+    get:
+      tags: [Remboursements]
+      summary: Lister les échéances de remboursement collectif d'un financement
+      parameters:
+        - name: financementId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Liste des échéances }
+
+  /remboursements/collectif/{id}:
+    get:
+      tags: [Remboursements]
+      summary: Consulter une échéance de remboursement collectif par id
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Détail de l'échéance }
+
+  /remboursements/collectif/{id}/decision-responsable:
+    put:
+      tags: [Remboursements]
+      summary: Décision finale de la Responsable sur un remboursement collectif
+      description: Réservé à la Responsable, une fois le circuit interne du comité terminé.
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision: { type: string, enum: [Approuve, Rejete] }
+      responses:
+        '200': { description: Décision enregistrée }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  # =====================================================================
+  # DOMAINES / VAGUES / PROGRAMMES / FONDS ROTATIF (données de référence — module Paramétrage)
+  # =====================================================================
+  /domaines:
+    get:
+      tags: [Domaines]
+      summary: Lister les domaines d'activité
+      responses:
+        '200': { description: Liste des domaines }
+    post:
+      tags: [Domaines]
+      summary: Créer un domaine
+      description: Réservé à la Responsable.
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, required: [nom], properties: { nom: { type: string, minLength: 2 } } }
+      responses:
+        '201': { description: Domaine créé }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /domaines/{id}:
+    get:
+      tags: [Domaines]
+      summary: Consulter un domaine par id
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Détail du domaine }
+
+  /vagues:
+    get:
+      tags: [Vagues]
+      summary: Lister les vagues
+      responses:
+        '200': { description: Liste des vagues }
+    post:
+      tags: [Vagues]
+      summary: Créer une vague
+      description: 'Réservé à la Responsable. Statut initial : Planifiee.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nom, date_debut, date_fin]
+              properties:
+                nom: { type: string }
+                description: { type: string, nullable: true }
+                date_debut: { type: string, format: date }
+                date_fin: { type: string, format: date }
+                budget_prevu: { type: number, nullable: true }
+      responses:
+        '201': { description: Vague créée }
+        '400': { $ref: '#/components/responses/ErreurValidation' }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /vagues/{id}:
+    get:
+      tags: [Vagues]
+      summary: Consulter une vague par id
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Détail de la vague }
+
+  /vagues/{id}/demarrer:
+    put:
+      tags: [Vagues]
+      summary: 'Démarrer une vague (Planifiee → EnCours)'
+      description: Réservé à la Responsable.
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Vague démarrée }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /vagues/{id}/cloturer:
+    put:
+      tags: [Vagues]
+      summary: 'Clôturer une vague (EnCours → Cloturee)'
+      description: Réservé à la Responsable.
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Vague clôturée }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /programmes:
+    get:
+      tags: [Programmes]
+      summary: Lister les programmes
+      responses:
+        '200': { description: Liste des programmes }
+    post:
+      tags: [Programmes]
+      summary: Créer un programme
+      description: Réservé à la Responsable.
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, required: [nom], properties: { nom: { type: string, minLength: 2 } } }
+      responses:
+        '201': { description: Programme créé }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /programmes/{id}:
+    get:
+      tags: [Programmes]
+      summary: Consulter un programme par id
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Détail du programme }
+
+  /fond-rotatif:
+    get:
+      tags: [Fonds rotatif]
+      summary: Lister les fonds rotatifs
+      responses:
+        '200': { description: Liste des fonds }
+    post:
+      tags: [Fonds rotatif]
+      summary: Créer un fonds rotatif
+      description: Réservé à la Responsable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code_fond, libelle_fond]
+              properties:
+                code_fond: { type: string }
+                libelle_fond: { type: string }
+      responses:
+        '201': { description: Fonds créé }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /fond-rotatif/{id}:
+    get:
+      tags: [Fonds rotatif]
+      summary: Consulter un fonds rotatif par id
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Détail du fonds }
+
+  /fond-rotatif/{id}/alimenter:
+    put:
+      tags: [Fonds rotatif]
+      summary: Créditer manuellement le solde d'un fonds rotatif
+      description: Réservé à la Responsable.
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [montant], properties: { montant: { type: number, minimum: 0.01 } } }
+      responses:
+        '200': { description: Solde crédité }
+        '400': { $ref: '#/components/responses/ErreurValidation' }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  # =====================================================================
+  # RAPPORTS
+  # =====================================================================
+  /rapports:
+    post:
+      tags: [Rapports]
+      summary: Générer un rapport sur une période donnée
+      description: Soumis au système d'habilitations (GENERER_RAPPORT).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [periode_debut, periode_fin]
+              properties:
+                periode_debut: { type: string, format: date }
+                periode_fin: { type: string, format: date }
+      responses:
+        '201': { description: Rapport généré, content: { application/json: { schema: { type: object, properties: { rapport: { $ref: '#/components/schemas/RapportGenere' } } } } } }
+        '400': { $ref: '#/components/responses/ErreurValidation' }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+    get:
+      tags: [Rapports]
+      summary: Lister tous les rapports déjà générés
+      responses:
+        '200': { description: Liste des rapports }
+
+  /rapports/remboursements-par-canton:
+    get:
+      tags: [Rapports]
+      summary: Répartition des remboursements confirmés par canton
+      responses:
+        '200': { description: 'Une ligne par canton : montant remboursé, nombre de remboursements' }
+
+  /rapports/{id}/pdf:
+    get:
+      tags: [Rapports]
+      summary: Télécharger un rapport au format PDF
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Fichier PDF, content: { application/pdf: { schema: { type: string, format: binary } } } }
+
+  /rapports/{id}/excel:
+    get:
+      tags: [Rapports]
+      summary: Télécharger un rapport au format Excel (3 feuilles)
+      description: Indicateurs / Remboursements par canton / Détail bénéficiaires.
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200':
+          description: Fichier Excel
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: { type: string, format: binary }
+
+  /rapports/{id}/detail:
+    get:
+      tags: [Rapports]
+      summary: Détail nominatif des bénéficiaires financés sur la période du rapport
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Liste détaillée }
+
+  /rapports/{id}:
+    get:
+      tags: [Rapports]
+      summary: Consulter un rapport par id
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Détail du rapport }
+    delete:
+      tags: [Rapports]
+      summary: Supprimer un rapport
+      description: Soumis au système d'habilitations (SUPPRIMER_RAPPORT).
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '204': { description: Supprimé }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  # =====================================================================
+  # AUTORITÉS
+  # =====================================================================
+  /autorites/moi/statistiques:
+    get:
+      tags: [Autorités]
+      summary: Consulter mes statistiques (autorité connectée)
+      description: Filtrées automatiquement selon le critère propre à cette autorité (domaine, sexe, ou âge maximum).
+      responses:
+        '200': { description: Statistiques filtrées }
+
+  /autorites:
+    post:
+      tags: [Autorités]
+      summary: Créer une autorité
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nom, prenom, sexe, telephone, mot_de_passe, fonction, type_critere]
+              properties:
+                nom: { type: string }
+                prenom: { type: string }
+                sexe: { type: string, enum: [M, F] }
+                telephone: { type: string }
+                mot_de_passe: { type: string, minLength: 6 }
+                fonction: { type: string, minLength: 3, example: 'Délégué départemental de la Jeunesse' }
+                type_critere: { type: string, enum: [DOMAINE, SEXE, AGE_MAX] }
+                domaine_id: { type: integer, nullable: true, description: 'Requis si type_critere = DOMAINE' }
+                valeur_critere: { type: string, nullable: true, description: "Requis si type_critere = SEXE ('M'/'F') ou AGE_MAX (nombre)" }
+      responses:
+        '201': { description: Autorité créée }
+        '400': { $ref: '#/components/responses/ErreurValidation' }
+    get:
+      tags: [Autorités]
+      summary: Lister les autorités
+      responses:
+        '200': { description: Liste des autorités }
+
+  /autorites/{id}:
+    get:
+      tags: [Autorités]
+      summary: Consulter une autorité par id
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Détail de l'autorité }
+    put:
+      tags: [Autorités]
+      summary: Modifier une autorité
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Autorité modifiée }
+        '400': { $ref: '#/components/responses/ErreurValidation' }
+
+  # =====================================================================
+  # PARAMÈTRES (clé/valeur)
+  # =====================================================================
+  /parametres:
+    get:
+      tags: [Paramètres]
+      summary: Lister les paramètres
+      responses:
+        '200': { description: Liste des paramètres }
+    post:
+      tags: [Paramètres]
+      summary: Créer un paramètre
+      description: "Réservé à la Responsable. La clé doit faire partie d'une liste blanche de clés réellement exploitées par le code."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cle, valeur]
+              properties:
+                cle: { type: string, example: taux_majoration_remboursement }
+                valeur: { type: string }
+                description: { type: string, nullable: true }
+      responses:
+        '201': { description: Paramètre créé }
+        '400': { description: 'Clé inconnue, ou valeur manquante' }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /parametres/cle/{cle}:
+    get:
+      tags: [Paramètres]
+      summary: Consulter un paramètre par sa clé
+      parameters:
+        - name: cle
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Valeur du paramètre }
+
+  /parametres/{id}:
+    put:
+      tags: [Paramètres]
+      summary: Modifier la valeur d'un paramètre
+      description: Réservé à la Responsable.
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [valeur], properties: { valeur: { type: string } } }
+      responses:
+        '200': { description: Paramètre modifié }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  # =====================================================================
+  # PARAMÉTRAGE — cantons, fonctions, habilitations
+  # =====================================================================
+  /parametrage/cantons:
+    get:
+      tags: [Paramétrage (cantons, fonctions, habilitations)]
+      summary: Lister les cantons
+      responses:
+        '200': { description: Liste des cantons }
+    post:
+      tags: [Paramétrage (cantons, fonctions, habilitations)]
+      summary: Créer un canton
+      description: Réservé à la Responsable.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nom]
+              properties: { nom: { type: string }, latitude: { type: number }, longitude: { type: number } }
+      responses:
+        '201': { description: Canton créé }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /parametrage/cantons/{id}:
+    put:
+      tags: [Paramétrage (cantons, fonctions, habilitations)]
+      summary: Modifier un canton
+      description: Réservé à la Responsable.
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Canton modifié }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /parametrage/cantons/{id}/desactiver:
+    put:
+      tags: [Paramétrage (cantons, fonctions, habilitations)]
+      summary: Désactiver un canton (jamais de suppression)
+      description: Réservé à la Responsable.
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Canton désactivé }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /parametrage/cantons/{id}/activer:
+    put:
+      tags: [Paramétrage (cantons, fonctions, habilitations)]
+      summary: Réactiver un canton
+      description: Réservé à la Responsable.
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Canton réactivé }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /parametrage/fonctions:
+    get:
+      tags: [Paramétrage (cantons, fonctions, habilitations)]
+      summary: Lister les fonctions du comité
+      responses:
+        '200': { description: Liste des fonctions }
+    post:
+      tags: [Paramétrage (cantons, fonctions, habilitations)]
+      summary: Créer une fonction
+      description: Réservé à la Responsable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, libelle]
+              properties:
+                code: { type: string, pattern: '^[A-Z_]{2,30}$' }
+                libelle: { type: string }
+      responses:
+        '201': { description: Fonction créée }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /parametrage/fonctions/{id}:
+    put:
+      tags: [Paramétrage (cantons, fonctions, habilitations)]
+      summary: Modifier le libellé d'une fonction
+      description: Réservé à la Responsable.
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, required: [libelle], properties: { libelle: { type: string } } }
+      responses:
+        '200': { description: Fonction modifiée }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+    delete:
+      tags: [Paramétrage (cantons, fonctions, habilitations)]
+      summary: Supprimer une fonction
+      description: Réservé à la Responsable.
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '204': { description: Supprimée }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /parametrage/fonctions/{id}/habilitations:
+    put:
+      tags: [Paramétrage (cantons, fonctions, habilitations)]
+      summary: Définir la liste des habilitations attribuées à une fonction
+      description: Réservé à la Responsable.
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [habilitation_ids]
+              properties:
+                habilitation_ids: { type: array, items: { type: integer } }
+      responses:
+        '200': { description: Habilitations mises à jour }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /parametrage/habilitations:
+    get:
+      tags: [Paramétrage (cantons, fonctions, habilitations)]
+      summary: Lister les habilitations disponibles
+      responses:
+        '200': { description: Liste des habilitations }
+    post:
+      tags: [Paramétrage (cantons, fonctions, habilitations)]
+      summary: Créer une habilitation
+      description: Réservé à la Responsable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code, libelle]
+              properties:
+                code: { type: string, pattern: '^[A-Z_]{2,50}$', example: VALIDER_DEMANDE }
+                libelle: { type: string }
+      responses:
+        '201': { description: Habilitation créée }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /parametrage/habilitations/{id}:
+    delete:
+      tags: [Paramétrage (cantons, fonctions, habilitations)]
+      summary: Supprimer une habilitation
+      description: Réservé à la Responsable.
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '204': { description: Supprimée }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  # =====================================================================
+  # ADMINISTRATION
+  # =====================================================================
+  /administration/utilisateurs:
+    get:
+      tags: [Administration]
+      summary: Vue unifiée de tous les comptes (tous rôles confondus)
+      description: Réservé à la Responsable.
+      responses:
+        '200': { description: Liste de tous les utilisateurs }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /administration/sauvegarde:
+    get:
+      tags: [Administration]
+      summary: Télécharger un export SQL complet des données
+      description: Réservé à la Responsable.
+      responses:
+        '200': { description: Fichier .sql, content: { application/sql: { schema: { type: string, format: binary } } } }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  # =====================================================================
+  # CONSEILLER IA — 3 niveaux d'usage distincts
+  # =====================================================================
+  /conseiller-ia/demander:
+    post:
+      tags: [Conseiller IA]
+      summary: Poser une question (bénéficiaire connecté, sur sa propre situation)
+      description: Réservé au rôle BENEFICIAIRE.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [question], properties: { question: { type: string, minLength: 3, maxLength: 1000 } } }
+      responses:
+        '201': { description: Réponse générée par l'IA, content: { application/json: { schema: { type: object, properties: { echange: { $ref: '#/components/schemas/ConseillerIAEchange' } } } } } }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /conseiller-ia/analyse:
+    post:
+      tags: [Conseiller IA]
+      summary: Générer une analyse financière complète en 4 sections (bénéficiaire connecté)
+      description: Réservé au rôle BENEFICIAIRE. Sections — Résumé / Analyse financière / Risques identifiés / Conseils personnalisés.
+      responses:
+        '201': { description: Analyse générée, content: { application/json: { schema: { type: object, properties: { echange: { $ref: '#/components/schemas/ConseillerIAEchange' } } } } } }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /conseiller-ia/historique:
+    get:
+      tags: [Conseiller IA]
+      summary: Historique des échanges du bénéficiaire connecté
+      responses:
+        '200': { description: Liste des échanges, content: { application/json: { schema: { type: object, properties: { historique: { type: array, items: { $ref: '#/components/schemas/ConseillerIAEchange' } } } } } } }
+
+  /conseiller-ia/beneficiaires/{id}/demander:
+    post:
+      tags: [Conseiller IA]
+      summary: Poser une question sur un bénéficiaire (membre du comité)
+      description: Réservé au comité, restreint aux bénéficiaires de son propre canton.
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [question], properties: { question: { type: string } } }
+      responses:
+        '201': { description: Réponse générée }
+        '403': { description: "Réservé au comité, ou bénéficiaire hors du canton du membre connecté" }
+
+  /conseiller-ia/beneficiaires/{id}/analyse:
+    post:
+      tags: [Conseiller IA]
+      summary: Générer une analyse complète sur un bénéficiaire (membre du comité)
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '201': { description: Analyse générée }
+        '403': { description: "Réservé au comité, ou bénéficiaire hors du canton du membre connecté" }
+
+  /conseiller-ia/beneficiaires/{id}/historique:
+    get:
+      tags: [Conseiller IA]
+      summary: Historique des échanges sur un bénéficiaire (membre du comité)
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Liste des échanges }
+        '403': { description: "Réservé au comité, ou bénéficiaire hors du canton du membre connecté" }
+
+  /conseiller-ia/cantons/{id}/demander:
+    post:
+      tags: [Conseiller IA]
+      summary: Poser une question sur un canton entier (Responsable, Web)
+      description: Réservé à la Responsable — vue agrégée du canton.
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [question], properties: { question: { type: string } } }
+      responses:
+        '201': { description: Réponse générée }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /conseiller-ia/cantons/{id}/analyse:
+    post:
+      tags: [Conseiller IA]
+      summary: Générer une analyse complète sur un canton (Responsable, Web)
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '201': { description: Analyse générée }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /conseiller-ia/cantons/{id}/historique:
+    get:
+      tags: [Conseiller IA]
+      summary: Historique des échanges sur un canton (Responsable, Web)
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Liste des échanges }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  # =====================================================================
+  # GROUPES MMF
+  # =====================================================================
+  /groupes-mmf:
+    post:
+      tags: [Groupes MMF]
+      summary: Créer un groupe MMF
+      description: Réservé au comité — jamais depuis le Web.
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, required: [nom], properties: { nom: { type: string, minLength: 2 } } }
+      responses:
+        '201': { description: Groupe créé }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+    get:
+      tags: [Groupes MMF]
+      summary: Lister les groupes MMF
+      responses:
+        '200': { description: Liste des groupes }
+
+  /groupes-mmf/mes-groupes:
+    get:
+      tags: [Groupes MMF]
+      summary: Lister les groupes du bénéficiaire connecté
+      responses:
+        '200': { description: Groupes auxquels le bénéficiaire connecté appartient }
+
+  /groupes-mmf/{id}:
+    get:
+      tags: [Groupes MMF]
+      summary: Consulter un groupe par id
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Détail du groupe }
+    put:
+      tags: [Groupes MMF]
+      summary: Modifier le nom d'un groupe
+      description: Réservé au comité.
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, required: [nom], properties: { nom: { type: string } } }
+      responses:
+        '200': { description: Groupe modifié }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /groupes-mmf/{id}/desactiver:
+    put:
+      tags: [Groupes MMF]
+      summary: Dissoudre un groupe (désactivation, jamais de suppression)
+      description: Réservé au comité.
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Groupe désactivé }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /groupes-mmf/{id}/activer:
+    put:
+      tags: [Groupes MMF]
+      summary: Réactiver un groupe
+      description: Réservé au comité.
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Groupe réactivé }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /groupes-mmf/{id}/membres:
+    get:
+      tags: [Groupes MMF]
+      summary: Lister les membres d'un groupe
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Liste des adhésions }
+    post:
+      tags: [Groupes MMF]
+      summary: Ajouter un bénéficiaire au groupe
+      description: Réservé au comité.
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [beneficiaire_id], properties: { beneficiaire_id: { type: integer } } }
+      responses:
+        '201': { description: Adhésion créée }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /groupes-mmf/{id}/membres/{adhesionId}:
+    delete:
+      tags: [Groupes MMF]
+      summary: Retirer un bénéficiaire du groupe
+      description: Réservé au comité.
+      parameters:
+        - { $ref: '#/components/parameters/IdEnChemin' }
+        - name: adhesionId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '204': { description: Retiré }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /groupes-mmf/{id}/responsable:
+    put:
+      tags: [Groupes MMF]
+      summary: Désigner le bénéficiaire responsable du groupe
+      description: Réservé au comité.
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [beneficiaire_id], properties: { beneficiaire_id: { type: integer } } }
+      responses:
+        '200': { description: Responsable désigné }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  # =====================================================================
+  # COTISATIONS
+  # =====================================================================
+  /cotisations:
+    post:
+      tags: [Cotisations]
+      summary: Enregistrer une cotisation
+      description: Réservé au comité — le bénéficiaire remet sa cotisation en main propre, le comité l'enregistre.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [groupe_mmf_id, beneficiaire_id, montant]
+              properties:
+                groupe_mmf_id: { type: integer }
+                beneficiaire_id: { type: integer }
+                montant: { type: number, minimum: 0.01 }
+                observation: { type: string, nullable: true }
+      responses:
+        '201': { description: Cotisation enregistrée, reçu PDF généré }
+        '400': { $ref: '#/components/responses/ErreurValidation' }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+    get:
+      tags: [Cotisations]
+      summary: Rechercher des cotisations
+      parameters:
+        - name: beneficiaireId
+          in: query
+          schema: { type: integer }
+        - name: groupeMmfId
+          in: query
+          schema: { type: integer }
+      responses:
+        '200': { description: Liste des cotisations correspondantes }
+
+  /cotisations/{id}:
+    get:
+      tags: [Cotisations]
+      summary: Consulter une cotisation par id
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Détail de la cotisation }
+    put:
+      tags: [Cotisations]
+      summary: Modifier une cotisation
+      description: Seuls montant et observation sont modifiables (jamais le bénéficiaire ni le groupe). Réservé au comité.
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                montant: { type: number, minimum: 0.01 }
+                observation: { type: string }
+      responses:
+        '200': { description: Cotisation modifiée }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /cotisations/{id}/recu:
+    get:
+      tags: [Cotisations]
+      summary: Télécharger le reçu PDF de la cotisation
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Fichier PDF, content: { application/pdf: { schema: { type: string, format: binary } } } }
+
+  /cotisations/{id}/annuler:
+    put:
+      tags: [Cotisations]
+      summary: Annuler une cotisation
+      description: Annulation logique (jamais de suppression) — reste visible dans l'historique. Réservé au comité.
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Cotisation annulée }
+        '403': { $ref: '#/components/responses/ErreurAcces' }
+
+  /cotisations/total/{beneficiaireId}/{groupeId}:
+    get:
+      tags: [Cotisations]
+      summary: Total cotisé par un bénéficiaire dans un groupe donné
+      parameters:
+        - name: beneficiaireId
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: groupeId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: Montant total }
+
+  # =====================================================================
+  # NOTIFICATIONS
+  # =====================================================================
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: Lister mes notifications (utilisateur connecté)
+      description: Chaque compte ne voit que ses propres notifications.
+      responses:
+        '200': { description: Liste des notifications, content: { application/json: { schema: { type: object, properties: { notifications: { type: array, items: { $ref: '#/components/schemas/Notification' } } } } } } }
+
+  /notifications/non-lues/nombre:
+    get:
+      tags: [Notifications]
+      summary: Nombre de notifications non lues (pour le badge)
+      responses:
+        '200': { description: 'Compteur', content: { application/json: { schema: { type: object, properties: { nombre: { type: integer } } } } } }
+
+  /notifications/toutes/lues:
+    put:
+      tags: [Notifications]
+      summary: Marquer toutes mes notifications comme lues
+      responses:
+        '200': { description: Notifications marquées comme lues }
+
+  /notifications/{id}/lue:
+    put:
+      tags: [Notifications]
+      summary: Marquer une notification comme lue
+      parameters: [{ $ref: '#/components/parameters/IdEnChemin' }]
+      responses:
+        '200': { description: Notification marquée comme lue }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: 'Token obtenu via POST /authentification/connexion, valable 7 jours.'
+
+  parameters:
+    IdEnChemin:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer }
+      description: Identifiant de la ressource
+
+  responses:
+    ErreurValidation:
+      description: Données invalides
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              erreurs: { type: array, items: { type: string } }
+    ErreurAcces:
+      description: Accès refusé (rôle ou habilitation insuffisante)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErreurSimple' }
+    ErreurNonTrouve:
+      description: Ressource introuvable
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErreurSimple' }
+
+  schemas:
+    ErreurSimple:
+      type: object
+      properties:
+        message: { type: string }
+
+    ReponseAuth:
+      type: object
+      properties:
+        token: { type: string, description: JWT à transmettre dans Authorization Bearer }
+        utilisateur:
+          type: object
+          properties:
+            id: { type: integer }
+            nom: { type: string }
+            prenom: { type: string }
+            role: { type: string, enum: [RESPONSABLE, MEMBRE_COMITE, BENEFICIAIRE, AUTORITE] }
+
+    Beneficiaire:
+      type: object
+      properties:
+        id: { type: integer }
+        utilisateurId: { type: integer }
+        cantonId: { type: integer, nullable: true }
+        nom: { type: string }
+        prenom: { type: string }
+        sexe: { type: string, enum: [M, F] }
+        telephone: { type: string }
+        photo: { type: string, nullable: true, description: 'Chemin relatif, ex. /uploads/beneficiaires/xxx.jpg' }
+        ageEstime: { type: integer, nullable: true }
+        activite: { type: string, nullable: true }
+        latitude: { type: number, nullable: true }
+        longitude: { type: number, nullable: true }
+        statutMMF: { type: string, enum: [Nouveau, EnAttente, Finance, RemboursementEnCours, Solde] }
+
+    CompteBeneficiaire:
+      type: object
+      properties:
+        beneficiaire: { $ref: '#/components/schemas/Beneficiaire' }
+        situation:
+          type: object
+          properties:
+            nombreFinancements: { type: integer }
+            totalAttribue: { type: number }
+            totalDu: { type: number }
+            totalRembourse: { type: number }
+            resteAPayer: { type: number }
+        financements:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              codeFinancement: { type: string }
+              montantAttribue: { type: number }
+              montantDu: { type: number }
+              montantRembourse: { type: number }
+              resteAPayer: { type: number }
+              soldee: { type: boolean }
+
+    RapportGenere:
+      type: object
+      properties:
+        id: { type: integer }
+        periodeDebut: { type: string, format: date }
+        periodeFin: { type: string, format: date }
+        nombreBeneficiaires: { type: integer }
+        montantTotalFinance: { type: number }
+        montantTotalRembourse: { type: number }
+        tauxRemboursement: { type: number }
+        nombreRetards: { type: integer }
+        dateGeneration: { type: string, format: date-time }
+
+    ConseillerIAEchange:
+      type: object
+      properties:
+        id: { type: integer }
+        beneficiaireId: { type: integer, nullable: true }
+        cantonId: { type: integer, nullable: true }
+        question: { type: string }
+        reponse: { type: string, description: "Peut contenir des titres de section au format '## Titre' pour une analyse complète" }
+        dateCreation: { type: string, format: date-time }
+
+    Notification:
+      type: object
+      properties:
+        id: { type: integer }
+        titre: { type: string }
+        message: { type: string }
+        lue: { type: boolean }
+        dateCreation: { type: string, format: date-time }

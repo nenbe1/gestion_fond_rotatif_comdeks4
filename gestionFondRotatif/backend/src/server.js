@@ -2,10 +2,19 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const YAML = require('yamljs');
+const swaggerUi = require('swagger-ui-express');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Documentation API interactive (Swagger) — module 8 (livrables de
+// stage) : "API REST sécurisée et documentée". Consultable sur
+// http://localhost:5000/api-docs, testable directement depuis le
+// navigateur (bouton "Authorize" pour coller un token JWT).
+const specificationOpenAPI = YAML.load(path.join(__dirname, '../docs/openapi.yaml'));
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specificationOpenAPI));
 
 // Photos de bénéficiaires (module Bénéficiaires — upload local, pas de
 // service cloud configuré dans ce projet). Accessible en lecture via

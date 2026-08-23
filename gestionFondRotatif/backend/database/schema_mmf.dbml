@@ -68,6 +68,7 @@ Table parametre {
 Table beneficiaire {
   id bigint [pk, increment]
   utilisateur_id bigint [unique, not null, ref: - utilisateur.id]
+  canton_id bigint [ref: > canton.id, note: 'Canton du membre du comite qui a enregistre le beneficiaire -- restreint chaque membre du comite aux beneficiaires de son propre canton']
   age_estime int
   activite varchar(150)
   latitude decimal(10,7)
@@ -264,12 +265,13 @@ Table demande_beneficiaire_prevu {
 
 Table conseiller_ia_historique {
   id bigint [pk, increment]
-  beneficiaire_id bigint [not null, ref: > beneficiaire.id]
+  beneficiaire_id bigint [ref: > beneficiaire.id]
+  canton_id bigint [ref: > canton.id]
   question text [not null]
   reponse text [not null]
   date_creation timestamp [not null, default: `CURRENT_TIMESTAMP`]
 
-  Note: 'Module 5 -- historique des echanges avec le Conseiller IA (Gemini), cote Mobile beneficiaire'
+  Note: 'Module 5 -- historique des echanges avec le Conseiller IA (Gemini). Porte soit sur un beneficiaire (Mobile -- le beneficiaire lui-meme, ou un membre du comite consultant un beneficiaire de son canton), soit sur un canton entier (Web -- la Responsable, vue agregee par canton), jamais les deux : contrainte CHECK exactement une des deux colonnes renseignee'
 }
 
 Table groupe_mmf {

@@ -1,6 +1,7 @@
 # Frontend — Gestion Fonds Rotatif COMDEKS4
 
-Interface web minimale pour l'administration du fonds rotatif (React + Vite).
+Interface web pour l'administration du fonds rotatif (React + Vite),
+utilisée par la **Responsable** et les **Autorités** (délégués institutionnels).
 
 ## Installation
 
@@ -21,25 +22,39 @@ compte utilisateur pour se connecter.
 
 ```
 src/
-  api/client.js          -- client HTTP centralisé (token, erreurs)
-  context/AuthContext.jsx -- état de connexion partagé
+  api/client.js              -- client HTTP centralisé (token, erreurs)
+  context/AuthContext.jsx     -- état de connexion partagé
   components/
-    MiseEnPage.jsx        -- barre latérale + zone de contenu
+    MiseEnPage.jsx            -- barre latérale + zone de contenu
+    NotificationsCloche.jsx   -- centre de notifications
+    SelecteurPositionCarte.jsx -- carte cliquable (recherche/positionnement, cantons)
+    CarteCantons.jsx           -- carte d'ensemble (tous les cantons)
   pages/
     Connexion.jsx
     TableauDeBord.jsx
-    Beneficiaires.jsx
+    Beneficiaires.jsx          -- liste, recherche, création
+    Financements.jsx
     Demandes.jsx
-    DetailDemande.jsx     -- circuit de validation, actions, décision Responsable
-    Rapports.jsx
+    DetailDemande.jsx           -- circuit de validation, décision Responsable
+    RemboursementsAttente.jsx   -- remboursements collectifs à valider
+    MembresComite.jsx
+    Autorites.jsx                -- gestion des comptes délégués
+    StatistiquesAutorite.jsx     -- vue d'un compte Autorité connecté
+    SituationCantons.jsx
+    ConseillerIA.jsx              -- vue Responsable, agrégée par canton
+    Parametrage.jsx                -- cantons, domaines, fonctions/habilitations,
+                                       programmes, vagues, fonds rotatif, paramètres
+    Rapports.jsx                    -- indicateurs, export PDF/Excel, graphiques,
+                                       comparaison de périodes, détail nominatif
+    Administration.jsx               -- utilisateurs, sauvegardes
 ```
 
 ## Statut
 
-Couverture actuelle : authentification, bénéficiaires (liste/création),
-demandes de financement (liste/création), circuit de validation complet
-(approbation/rejet par étape, décision finale de la Responsable),
-rapports (génération/consultation).
+Couverture actuelle : authentification, bénéficiaires, financements,
+demandes de financement (circuit de validation complet), remboursements
+collectifs, membres du comité, Autorités, Conseiller IA (vue Responsable),
+Paramétrage complet, Rapports enrichis, Administration, notifications.
 
-**Non couvert pour l'instant** (backend prêt, écran à faire) : gestion
-des membres du comité, attributions/remboursements, paramétrage.
+**Non couvert pour l'instant** (backend prêt côté Mobile, pas d'écran
+Web dédié) : Groupes MMF et Cotisations.
