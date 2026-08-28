@@ -12,7 +12,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  * ou `ifconfig` (Mac/Linux). Pour un émulateur Android, '10.0.2.2'
  * remplace 'localhost'.
  */
-const BASE_URL = 'http://192.168.43.120:5000/api'; // IP locale de votre PC sur le Wi-Fi
+// URL de l'API — configurable via la variable d'environnement
+// EXPO_PUBLIC_API_URL (fichier .env, voir .env.example) pour la
+// production. En développement, si elle n'est pas définie, on retombe
+// sur l'IP locale du PC sur le Wi-Fi (à adapter à votre propre réseau).
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.43.120:5000/api'; // IP locale de votre PC sur le Wi-Fi (développement uniquement)
 
 /**
  * Effectue une requête vers l'API, en ajoutant automatiquement le token

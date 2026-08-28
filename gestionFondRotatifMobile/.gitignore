@@ -1,0 +1,15 @@
+node_modules/
+.expo/
+dist/
+npm-debug.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+
+# Variables d'environnement (contient l'URL de l'API en production —
+# .env.example sert de modèle, jamais .env lui-même)
+.env

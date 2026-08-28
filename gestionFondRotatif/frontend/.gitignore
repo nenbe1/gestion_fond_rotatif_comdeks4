@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Variables d'environnement (contient l'URL de l'API en production —
+# .env.example sert de modèle, jamais .env lui-même)
+.env
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -11,7 +11,11 @@
 // localhost:5000 ; si ouvert depuis un téléphone via
 // http://192.168.x.x:5173 (voir vite.config.js), le backend est appelé
 // sur cette même adresse réseau — sans rien à changer manuellement.
-const BASE_URL = `http://${window.location.hostname}:5000/api`;
+// URL de l'API — configurable via la variable d'environnement VITE_API_URL
+// (fichier .env, voir .env.example) pour la production, avec un repli sur
+// le comportement dynamique actuel en développement (fonctionne aussi bien
+// depuis localhost que depuis une IP du réseau local, sans rien configurer).
+const BASE_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000/api`;
 
 /**
  * Effectue une requête vers l'API, en ajoutant automatiquement le token
