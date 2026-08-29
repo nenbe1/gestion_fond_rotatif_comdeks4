@@ -14,7 +14,7 @@
     "buildType": "apk"
   },
   "env": {
-    "EXPO_PUBLIC_API_URL": "https://gestion-fond-rotatif-comdeks4-production.up.railway.app/api"
+    "EXPO_PUBLIC_API_URL": "https://gestionfondrotatifcomdeks4-production.up.railway.app/api"
   }
 },
     "production": {
