@@ -6,12 +6,17 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "backgroundColor": "#faf8f3",
+    "icon": "./assets/icon.png",
     "splash": {
       "backgroundColor": "#faf8f3"
     },
     "android": {
       "package": "com.ajeov.fondrotatifmmf",
       "softwareKeyboardLayoutMode": "resize",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#faf8f3"
+      },
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.ACCESS_COARSE_LOCATION",
