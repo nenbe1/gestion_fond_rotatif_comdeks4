@@ -9,7 +9,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.use(cors({ origin: 'https://dapper-otter-3c4b79.netlify.app', credentials: true }));
+const originsAutorisees = ['https://dapper-otter-3c4b79.netlify.app', 'http://localhost:5173']; 
+app.use(cors({ origin: function (origin, callback) { if (!origin || originsAutorisees.includes(origin)) { callback(null, true); 
+  
+} else { callback(new Error('Non autorisé par CORS')); } }, credentials: true }));
 
 // Documentation API interactive (Swagger) — module 8 (livrables de
 // stage) : "API REST sécurisée et documentée". Consultable sur
