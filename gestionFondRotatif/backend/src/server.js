@@ -9,6 +9,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.use(cors({ origin: 'https://dapper-otter-3c4b79.netlify.app', credentials: true }));
+
 // Documentation API interactive (Swagger) — module 8 (livrables de
 // stage) : "API REST sécurisée et documentée". Consultable sur
 // http://localhost:5000/api-docs, testable directement depuis le
@@ -43,7 +45,6 @@ app.use('/api/conseiller-ia', require('./modules/conseiller_ia/routes/conseiller
 app.use('/api/groupes-mmf', require('./modules/groupes_mmf/routes/groupe_mmf.routes'));
 app.use('/api/cotisations', require('./modules/cotisations/routes/cotisation.routes'));
 app.use('/api/notifications', require('./modules/notifications/routes/notification.routes'));
-app.use(cors({ origin: 'https://dapper-otter-3c4b79.netlify.app', credentials: true }));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'mmf-backend' });
