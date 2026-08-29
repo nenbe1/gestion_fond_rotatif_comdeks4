@@ -43,6 +43,7 @@ app.use('/api/conseiller-ia', require('./modules/conseiller_ia/routes/conseiller
 app.use('/api/groupes-mmf', require('./modules/groupes_mmf/routes/groupe_mmf.routes'));
 app.use('/api/cotisations', require('./modules/cotisations/routes/cotisation.routes'));
 app.use('/api/notifications', require('./modules/notifications/routes/notification.routes'));
+app.use(cors({ origin: 'https://dapper-otter-3c4b79.netlify.app', credentials: true }));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'mmf-backend' });
