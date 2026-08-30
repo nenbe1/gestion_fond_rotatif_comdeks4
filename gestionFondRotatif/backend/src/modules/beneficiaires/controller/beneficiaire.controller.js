@@ -89,7 +89,11 @@ async function uploaderPhoto(req, res) {
     if (!req.file) {
       return res.status(400).json({ message: 'Aucune photo reçue (champ "photo" attendu).' });
     }
-    const cheminPhoto = `/uploads/beneficiaires/${req.file.filename}`;
+    // req.file.path contient l'URL Cloudinary complète et durable de
+    // l'image (https://res.cloudinary.com/...), fournie par
+    // multer-storage-cloudinary — à enregistrer telle quelle, plus de
+    // chemin relatif à reconstruire comme avec l'ancien stockage local.
+    const cheminPhoto = req.file.path;
     const compte = await beneficiaireService.mettreAJourPhoto(req.params.id, cheminPhoto);
     res.status(200).json({ compte });
   } catch (erreur) {

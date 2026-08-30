@@ -11,6 +11,17 @@ import { choisirPhoto } from '../../utils/choisirPhoto';
 const ORIGINE_SERVEUR = BASE_URL.replace(/\/api\/?$/, '');
 
 /**
+ * Construit l'URL d'affichage d'une photo — Cloudinary renvoie une URL
+ * complète (https://res.cloudinary.com/...), à utiliser telle quelle ;
+ * l'ancien stockage local renvoyait un chemin relatif (/uploads/...),
+ * conservé en repli pour les photos enregistrées avant la migration.
+ */
+function urlPhoto(photo) {
+  if (!photo) return null;
+  return photo.startsWith('http') ? photo : `${ORIGINE_SERVEUR}${photo}`;
+}
+
+/**
  * Liste des bénéficiaires de mon canton (comité), avec Modifier
  * (identité complète : nom, prénom, téléphone, sexe, photo, âge estimé,
  * activité — AJOUT : seuls âge/activité étaient modifiables jusqu'ici,
@@ -136,7 +147,7 @@ export default function ListeBeneficiairesScreen() {
         <View style={styles.carte}>
           <View style={styles.entete}>
             {item.photo ? (
-              <Image source={{ uri: `${ORIGINE_SERVEUR}${item.photo}` }} style={styles.miniaturePhotoListe} />
+              <Image source={{ uri: urlPhoto(item.photo) }} style={styles.miniaturePhotoListe} />
             ) : (
               <View style={styles.miniaturePhotoListeVide}><Text style={styles.texteMiniaturePhotoVide}>👤</Text></View>
             )}
@@ -154,7 +165,7 @@ export default function ListeBeneficiairesScreen() {
                   {nouvellePhoto ? (
                     <Image source={{ uri: nouvellePhoto.uri }} style={styles.miniaturePhoto} />
                   ) : item.photo ? (
-                    <Image source={{ uri: `${ORIGINE_SERVEUR}${item.photo}` }} style={styles.miniaturePhoto} />
+                    <Image source={{ uri: urlPhoto(item.photo) }} style={styles.miniaturePhoto} />
                   ) : (
                     <View style={styles.miniaturePhotoVide}><Text style={styles.texteMiniaturePhotoVide}>📷</Text></View>
                   )}

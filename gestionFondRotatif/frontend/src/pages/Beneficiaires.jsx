@@ -7,6 +7,17 @@ import appelerApi, { BASE_URL } from '../api/client';
 const ORIGINE_SERVEUR = BASE_URL.replace(/\/api\/?$/, '');
 
 /**
+ * Construit l'URL d'affichage d'une photo — Cloudinary renvoie une URL
+ * complète (https://res.cloudinary.com/...), à utiliser telle quelle ;
+ * l'ancien stockage local renvoyait un chemin relatif (/uploads/...),
+ * conservé en repli pour les photos enregistrées avant la migration.
+ */
+function urlPhoto(photo) {
+  if (!photo) return null;
+  return photo.startsWith('http') ? photo : `${ORIGINE_SERVEUR}${photo}`;
+}
+
+/**
  * Page Bénéficiaires — les bénéficiaires sont créés exclusivement par
  * les membres du comité, sur le Mobile (jamais depuis le Web) — pour
  * garder la traçabilité de qui a enregistré qui, sur le terrain.
@@ -172,7 +183,7 @@ export default function Beneficiaires() {
                       <label className="miniature-photo-modifiable">
                         {(apercuNouvellePhoto || b.photo) ? (
                           <img
-                            src={apercuNouvellePhoto || `${ORIGINE_SERVEUR}${b.photo}`}
+                            src={apercuNouvellePhoto || urlPhoto(b.photo)}
                             alt=""
                             className="miniature-photo"
                           />
@@ -240,7 +251,7 @@ export default function Beneficiaires() {
                   <>
                     <td>
                       {b.photo ? (
-                        <img src={`${ORIGINE_SERVEUR}${b.photo}`} alt="" className="miniature-photo" />
+                        <img src={urlPhoto(b.photo)} alt="" className="miniature-photo" />
                       ) : (
                         <div className="miniature-photo-vide">👤</div>
                       )}
