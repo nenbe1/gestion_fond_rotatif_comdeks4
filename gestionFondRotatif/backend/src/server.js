@@ -9,7 +9,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const originsAutorisees = ['https://dapper-otter-3c4b79.netlify.app', 'http://localhost:5173']; 
+const originsAutorisees = ['https://dapper-otter-3c4b79.netlify.app', 'http://localhost:5173','https://gestion-fond-rotatif-comdeks4-ajeov-tec.vercel.app']; 
 app.use(cors({ origin: function (origin, callback) { if (!origin || originsAutorisees.includes(origin)) { callback(null, true); 
   
 } else { callback(new Error('Non autorisé par CORS')); } }, credentials: true }));
