@@ -326,7 +326,18 @@ label {
 .groupe-filtres { display: flex; align-items: center; gap: 1rem; }
 .groupe-filtres .champ-recherche { margin-bottom: 0; }
 
-.onglets { display: flex; gap: 0.4rem; margin-bottom: 1.2rem; border-bottom: 1px solid var(--gris-clair); }
+.onglets {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 1.2rem;
+  border-bottom: 1px solid var(--gris-clair);
+  /* CORRECTIF (mobile) : sur petit écran, 7 onglets sur une seule ligne
+     dépassaient la largeur de l'écran et faisaient défiler toute la page
+     horizontalement. Le défilement est maintenant contenu dans la barre
+     d'onglets elle-même, comme pour les tableaux (.tableau). */
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
 .onglets .onglet, .onglets .onglet-actif {
   background: transparent;
   color: #888;
@@ -335,6 +346,8 @@ label {
   margin-right: 1.2rem;
   border-bottom: 2px solid transparent;
   font-size: 0.88rem;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .onglets .onglet-actif { color: var(--vert-fonce); border-bottom-color: var(--or-mil); font-weight: 700; }
 .onglets .onglet:hover { opacity: 1; color: var(--vert-fonce); }
