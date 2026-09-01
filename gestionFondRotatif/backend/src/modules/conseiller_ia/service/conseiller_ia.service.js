@@ -170,6 +170,56 @@ Génère l'analyse complète de ce canton, en respectant strictement les 4 secti
   `.trim();
 }
 
+/**
+ * Variantes Comité des deux prompts bénéficiaire ci-dessus : un membre du
+ * comité (Trésorier, Commissaire, Président) consulte le dossier d'un
+ * bénéficiaire de son canton pendant l'instruction d'une demande — ce
+ * n'est PAS le bénéficiaire qui parle, donc le Conseiller IA doit parler
+ * DU bénéficiaire à la 3e personne, jamais s'adresser à lui directement.
+ */
+function construirePromptComite(contexte, question) {
+  return `
+Tu es le Conseiller Financier IA de l'application de gestion du Fonds Rotatif MMF (COMDEKS4, AJEOV Technologies), destinée à des femmes et jeunes bénéficiaires en zone rurale au Cameroun.
+
+Tu t'adresses ici à un membre du comité de gestion (Trésorier, Commissaire ou Président), qui consulte le dossier d'un bénéficiaire de son canton pendant l'instruction d'une demande. Ce n'est PAS le bénéficiaire qui te parle.
+
+Règles :
+- Réponds en français, de façon simple et claire, en parlant DU bénéficiaire à la 3e personne (jamais "vous" adressé au bénéficiaire).
+- Base-toi UNIQUEMENT sur les données réelles du bénéficiaire fournies ci-dessous.
+- Tu peux donner un avis ou une estimation, mais rappelle que la décision finale d'accorder un nouveau prêt appartient toujours au comité (Trésorier, Commissaire, Président) — tu ne peux jamais garantir une approbation.
+- Sois concis : 3 à 6 phrases maximum, sauf si la question demande clairement plus de détail.
+
+${contexte}
+
+Question du membre du comité : "${question}"
+
+Réponds directement à sa question, en parlant du bénéficiaire à la 3e personne.
+  `.trim();
+}
+
+function construirePromptAnalyseComite(contexte) {
+  return `
+Tu es le Conseiller Financier IA de l'application de gestion du Fonds Rotatif MMF (COMDEKS4, AJEOV Technologies), destinée à des femmes et jeunes bénéficiaires en zone rurale au Cameroun.
+
+Tu t'adresses ici à un membre du comité de gestion (Trésorier, Commissaire ou Président), qui consulte le dossier d'un bénéficiaire de son canton pendant l'instruction d'une demande. Ce n'est PAS le bénéficiaire qui te parle.
+
+Règles :
+- Réponds en français, de façon simple et claire, en parlant DU bénéficiaire à la 3e personne (jamais "vous" adressé au bénéficiaire).
+- Base-toi UNIQUEMENT sur les données réelles du bénéficiaire fournies ci-dessous.
+- Rappelle si besoin que la décision finale d'accorder un nouveau prêt appartient toujours au comité (Trésorier, Commissaire, Président) — tu ne peux jamais garantir une approbation.
+- Structure IMPÉRATIVEMENT ta réponse en 4 sections, chacune précédée d'un titre au format "## Titre" (sur sa propre ligne), dans cet ordre exact :
+  ## Résumé
+  ## Analyse financière
+  ## Risques identifiés
+  ## Conseils personnalisés
+- Chaque section fait 2 à 4 phrases maximum.
+
+${contexte}
+
+Génère l'analyse financière complète de ce bénéficiaire à l'attention du comité, en respectant strictement les 4 sections demandées.
+  `.trim();
+}
+
 function erreur(message, statusCode) {
   const e = new Error(message);
   e.statusCode = statusCode;
@@ -238,7 +288,7 @@ async function genererAnalyse(utilisateurId) {
 async function poserQuestionPourBeneficiaire(beneficiaireId, question) {
   const compte = await beneficiaireService.consulterCompteParId(beneficiaireId);
   const contexte = construireContexte(compte);
-  const prompt = construirePrompt(contexte, question);
+  const prompt = construirePromptComite(contexte, question);
 
   const reponse = await gemini.genererReponse(prompt);
 
@@ -254,7 +304,7 @@ async function poserQuestionPourBeneficiaire(beneficiaireId, question) {
 async function genererAnalysePourBeneficiaire(beneficiaireId) {
   const compte = await beneficiaireService.consulterCompteParId(beneficiaireId);
   const contexte = construireContexte(compte);
-  const prompt = construirePromptAnalyse(contexte);
+  const prompt = construirePromptAnalyseComite(contexte);
 
   const reponse = await gemini.genererReponse(prompt);
 
