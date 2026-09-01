@@ -1,20 +1,31 @@
 const cron = require('node-cron');
 const remboursementRepository = require('../modules/remboursements/repository/remboursement.repository');
 const membreComiteRepository = require('../modules/membres_comite/repository/membre_comite.repository');
+const attributionRepository = require('../modules/attributions/repository/attribution.repository');
 const notificationService = require('../modules/notifications/service/notification.service');
 
 /**
  * Traite un lot d'échéances pour un type de rappel donné : alerte tous
  * les membres actifs du comité du canton concerné (pas seulement celui
  * qui a soumis la demande d'origine — la collecte est une responsabilité
- * de tout le comité local), puis marque l'échéance comme signalée pour
- * ce rappel précis.
+ * de tout le comité local), ainsi que tous les bénéficiaires ayant reçu
+ * une part de ce financement (l'échéance est celle du groupe, donc le
+ * même rappel collectif leur est partagé), puis marque l'échéance comme
+ * signalée pour ce rappel précis.
  */
 async function traiterLot(echeances, titre, construireMessage, marquerEnvoye) {
   for (const echeance of echeances) {
-    const membres = await membreComiteRepository.findByCantonId(echeance.canton_id);
     const message = construireMessage(echeance);
-    await Promise.all(membres.map((m) => notificationService.envoyer(m.utilisateur_id, titre, message)));
+
+    const membres = await membreComiteRepository.findByCantonId(echeance.canton_id);
+    const attributions = await attributionRepository.findByFinancementId(echeance.financement_id);
+
+    const idsUtilisateurs = new Set([
+      ...membres.map((m) => m.utilisateur_id),
+      ...attributions.map((a) => a.beneficiaire_utilisateur_id),
+    ]);
+
+    await Promise.all([...idsUtilisateurs].map((id) => notificationService.envoyer(id, titre, message)));
     await marquerEnvoye(echeance.id);
   }
   return echeances.length;
