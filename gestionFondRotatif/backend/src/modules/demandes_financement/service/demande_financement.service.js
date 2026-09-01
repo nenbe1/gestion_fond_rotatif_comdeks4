@@ -4,6 +4,7 @@ const beneficiairePrevuRepository = require('../repository/demande_beneficiaire_
 const validationRepository = require('../../validations/repository/validation.repository');
 const financementService = require('../../financements/service/financement.service');
 const notificationService = require('../../notifications/service/notification.service');
+const membreComiteRepository = require('../../membres_comite/repository/membre_comite.repository');
 const DemandeFinancement = require('../model/demande_financement.model');
 
 function erreur(message, statusCode) {
@@ -50,6 +51,21 @@ async function creer(data, membreComiteId, beneficiairesPrevus = []) {
     'Nouvelle demande de financement',
     `Une nouvelle demande (${row.code_demande}) vient d'être soumise et entame son circuit de validation.`
   );
+
+  // AJOUT : alerte aussi les autres membres du comité du même canton
+  // (Trésorier, Commissaire, Président) dès la création — y compris ceux
+  // dont ce n'est pas encore le tour dans le circuit, pour qu'ils aient
+  // une visibilité immédiate sur les demandes à venir. Le membre qui a
+  // soumis la demande n'est pas notifié de sa propre soumission.
+  if (row.canton_id) {
+    const membresDuComite = await membreComiteRepository.findByCantonId(row.canton_id);
+    const autresMembres = membresDuComite.filter((m) => m.id !== membreComiteId);
+    await Promise.all(autresMembres.map((m) => notificationService.envoyer(
+      m.utilisateur_id,
+      'Demande à approuver ou rejeter',
+      `${row.code_demande} vient d'être soumise et attend une décision du comité (Trésorier, Commissaire, Président).`
+    )));
+  }
 
   return DemandeFinancement.fromRow(row);
 }
