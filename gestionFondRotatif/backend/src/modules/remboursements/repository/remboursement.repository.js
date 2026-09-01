@@ -142,9 +142,26 @@ function marquerRappelJourJEnvoye(id) {
   return marquerRappelEnvoye(id, 'rappel_jour_j_envoye');
 }
 
+/**
+ * Financements ayant au moins une échéance collective dépassée et
+ * toujours 'EnAttente' — utilisé par le job de pénalités de retard.
+ * semaines_retard = nombre d'échéances distinctes en retard pour ce
+ * financement (une échéance = une semaine).
+ */
+async function findFinancementsEnRetard() {
+  const [rows] = await db.query(`
+    SELECT financement_id, COUNT(*) AS semaines_retard
+    FROM remboursement_collectif
+    WHERE statut = 'EnAttente' AND date_prevue < CURDATE()
+    GROUP BY financement_id
+  `);
+  return rows;
+}
+
 module.exports = {
   findIndividuelById, findIndividuelByAttributionId, createIndividuel, majStatutIndividuel,
   findCollectifById, findCollectifByFinancementId, createCollectif,
   majStatutCollectif, confirmerPaiementCollectif, findCollectifEnAttenteResponsable,
   findEcheancesJMoins3, marquerRappelJMoins3Envoye, findEcheancesJourJ, marquerRappelJourJEnvoye,
+  findFinancementsEnRetard,
 };

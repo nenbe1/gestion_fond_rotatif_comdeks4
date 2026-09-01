@@ -48,6 +48,7 @@ app.use('/api/conseiller-ia', require('./modules/conseiller_ia/routes/conseiller
 app.use('/api/groupes-mmf', require('./modules/groupes_mmf/routes/groupe_mmf.routes'));
 app.use('/api/cotisations', require('./modules/cotisations/routes/cotisation.routes'));
 app.use('/api/notifications', require('./modules/notifications/routes/notification.routes'));
+app.use('/api/penalites-retard', require('./modules/penalites_retard/routes/penalite_retard.routes'));
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', service: 'mmf-backend' });
@@ -62,3 +63,9 @@ app.listen(PORT, () => {
 // jour à 7h00 — voir src/jobs/rappelsEcheance.js.
 const { planifierRappelsEcheance } = require('./jobs/rappelsEcheance');
 planifierRappelsEcheance();
+
+// Pénalités de retard proposées (jamais appliquées automatiquement),
+// calculées chaque jour juste après les rappels — voir
+// src/jobs/penalitesRetard.js.
+const { planifierPenalitesRetard } = require('./jobs/penalitesRetard');
+planifierPenalitesRetard();

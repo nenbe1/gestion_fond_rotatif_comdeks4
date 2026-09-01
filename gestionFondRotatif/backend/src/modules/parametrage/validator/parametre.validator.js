@@ -5,7 +5,7 @@
  * Pour ajouter un nouveau réglage réellement utilisé, ajouter sa clé
  * ici en même temps que le code qui la consomme.
  */
-const CLES_CONNUES = ['taux_majoration_remboursement'];
+const CLES_CONNUES = ['taux_majoration_remboursement', 'taux_penalite_retard'];
 
 /** Valide les données d'entrée pour la création d'un paramètre. */
 function validerCreation(req, res, next) {

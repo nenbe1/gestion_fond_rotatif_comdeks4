@@ -324,3 +324,17 @@ Table notification {
 
   Note: 'Centre de notifications interne, genere automatiquement par le systeme a certains evenements'
 }
+
+Table penalite_retard {
+  id bigint [pk, increment]
+  attribution_financement_id bigint [not null, ref: > attribution_financement.id]
+  semaines_retard int [not null, default: 1]
+  montant_restant_du decimal(15,2) [not null]
+  montant_propose decimal(15,2) [not null]
+  statut varchar(20) [not null, default: 'Proposee', note: 'Proposee | Validee | Rejetee']
+  date_calcul timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  date_decision timestamp
+  responsable_id bigint [ref: > responsable_fond_rotatif.id]
+
+  Note: 'Penalite de retard calculee automatiquement chaque jour (job), validee ou rejetee au cas par cas par la Responsable'
+}

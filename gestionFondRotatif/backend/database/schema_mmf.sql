@@ -458,6 +458,25 @@ CREATE TABLE notification (
   CONSTRAINT fk_notification_utilisateur FOREIGN KEY (utilisateur_id) REFERENCES utilisateur(id)
 );
 
+-- ---------------------------------------------------------------------
+-- PENALITE_RETARD — proposée automatiquement par le système (job
+-- quotidien), validée ou rejetée au cas par cas par la Responsable.
+-- Voir migration_penalites_retard.sql pour le détail du raisonnement.
+-- ---------------------------------------------------------------------
+CREATE TABLE penalite_retard (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  attribution_financement_id BIGINT NOT NULL,
+  semaines_retard INT NOT NULL DEFAULT 1,
+  montant_restant_du DECIMAL(15,2) NOT NULL,
+  montant_propose DECIMAL(15,2) NOT NULL,
+  statut VARCHAR(20) NOT NULL DEFAULT 'Proposee',
+  date_calcul TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  date_decision TIMESTAMP NULL,
+  responsable_id BIGINT NULL,
+  CONSTRAINT fk_penalite_attribution FOREIGN KEY (attribution_financement_id) REFERENCES attribution_financement(id),
+  CONSTRAINT fk_penalite_responsable FOREIGN KEY (responsable_id) REFERENCES responsable_fond_rotatif(id)
+);
+
 -- =====================================================================
 -- DONNEES DE REFERENCE INITIALES (module Paramétrage)
 -- =====================================================================
@@ -498,4 +517,5 @@ WHERE f.code = 'COMMISSAIRE'
   AND h.code IN ('GERER_BENEFICIAIRES','CREER_DEMANDE_FINANCEMENT');
 
 INSERT INTO parametre (cle, valeur, description) VALUES
-  ('taux_majoration_remboursement', '10', 'Majoration appliquée sur le remboursement, représentant les frais administratifs (%)');
+  ('taux_majoration_remboursement', '10', 'Majoration appliquée sur le remboursement, représentant les frais administratifs (%)'),
+  ('taux_penalite_retard', '2', 'Pénalité de retard proposée, appliquée par semaine de retard sur la part restant due de chaque bénéficiaire (%)');
