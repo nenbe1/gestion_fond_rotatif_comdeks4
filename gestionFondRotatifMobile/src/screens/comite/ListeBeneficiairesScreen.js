@@ -142,6 +142,11 @@ export default function ListeBeneficiairesScreen() {
       data={beneficiaires}
       keyExtractor={(item) => String(item.id)}
       refreshControl={<RefreshControl refreshing={chargement} onRefresh={charger} />}
+      ListHeaderComponent={
+        <TouchableOpacity style={styles.boutonAjouter} onPress={() => navigation.navigate('NouveauBeneficiaire')}>
+          <Text style={styles.texteBoutonAjouter}>+ Nouveau bénéficiaire</Text>
+        </TouchableOpacity>
+      }
       ListEmptyComponent={!chargement ? <Text style={styles.vide}>{erreur || "Aucun bénéficiaire pour l'instant."}</Text> : null}
       renderItem={({ item }) => (
         <View style={styles.carte}>
@@ -229,6 +234,8 @@ export default function ListeBeneficiairesScreen() {
 const styles = StyleSheet.create({
   conteneur: { flex: 1, backgroundColor: couleurs.creme },
   contenu: { padding: 20 },
+  boutonAjouter: { backgroundColor: couleurs.vertFonce, borderRadius: 8, padding: 12, alignItems: 'center', marginBottom: 14 },
+  texteBoutonAjouter: { color: couleurs.blanc, fontWeight: '700', fontSize: 14 },
   vide: { textAlign: 'center', color: '#888', marginTop: 20 },
   carte: { backgroundColor: couleurs.blanc, borderRadius: 10, padding: 14, marginBottom: 10 },
   entete: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
