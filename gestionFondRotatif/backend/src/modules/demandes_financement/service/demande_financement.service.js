@@ -43,14 +43,11 @@ async function creer(data, membreComiteId, beneficiairesPrevus = []) {
     await beneficiairePrevuRepository.createMany(row.id, beneficiairesPrevus);
   }
 
-  // AJOUT : alerte la Responsable dès qu'une nouvelle demande est
-  // soumise (visibilité immédiate sur l'activité du comité) — même si
-  // elle n'aura concrètement à la traiter que plus tard, une fois le
-  // circuit interne du comité terminé (statut EnAttenteResponsable).
-  await notificationService.envoyerATousLesResponsables(
-    'Nouvelle demande de financement',
-    `Une nouvelle demande (${row.code_demande}) vient d'être soumise et entame son circuit de validation.`
-  );
+  // La Responsable n'est notifiée qu'une fois le circuit interne du
+  // comité terminé (Trésorier + Commissaire + Président ont approuvé) —
+  // voir validation.service.js, au moment où le statut passe à
+  // 'EnAttenteResponsable'. Avant cela, il ne reste rien à gérer de son
+  // côté, donc pas de notification prématurée.
 
   // AJOUT : alerte aussi les autres membres du comité du même canton
   // (Trésorier, Commissaire, Président) dès la création — y compris ceux

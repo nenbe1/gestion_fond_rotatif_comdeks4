@@ -2,6 +2,7 @@ const db = require('../../../config/db');
 const validationRepository = require('../repository/validation.repository');
 const membreComiteRepository = require('../../membres_comite/repository/membre_comite.repository');
 const notificationService = require('../../notifications/service/notification.service');
+const demandeFinancementRepository = require('../../demandes_financement/repository/demande_financement.repository');
 
 const LIBELLE_NIVEAU = {
   TRESORIER: 'Trésorier',
@@ -116,6 +117,14 @@ async function traiterEtape(validationId, { decision, commentaire, membre_comite
       );
     } else if (decision === 'Approuve' && ligne.ordre === validationRepository.NIVEAUX.length - 1) {
       await majStatutDemande(ligne.demande_financement_id, 'EnAttenteResponsable');
+      // AJOUT : notifie la Responsable seulement maintenant — le circuit
+      // interne du comité (Trésorier, Commissaire, Président) est
+      // terminé, il ne reste plus qu'à elle de traiter le dossier.
+      const demande = await demandeFinancementRepository.findById(ligne.demande_financement_id);
+      await notificationService.envoyerATousLesResponsables(
+        'Demande prête pour votre décision',
+        `${demande.code_demande} a été approuvée par le comité (Trésorier, Commissaire, Président) et attend votre décision.`
+      );
     }
   } else if (ligne.remboursement_collectif_id) {
     // require() différé ici (plutôt qu'en haut du fichier) uniquement
