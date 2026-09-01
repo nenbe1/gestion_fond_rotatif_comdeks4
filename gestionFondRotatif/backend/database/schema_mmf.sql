@@ -200,7 +200,7 @@ CREATE TABLE demande_financement (
   nb_femmes_benef INT NOT NULL DEFAULT 0,
   nb_hommes_benef INT NOT NULL DEFAULT 0,
   montant_demande DECIMAL(15,2) NOT NULL,
-  co_financement_en_nature DECIMAL(15,2) NULL,   -- apport du canton, en nature -- rassure le donateur
+  co_financement_en_nature VARCHAR(255) NULL,    -- apport du canton, en nature (texte libre, ex: "Terrain disponible") -- rassure le donateur
   co_financement_especes DECIMAL(15,2) NULL,     -- apport du canton, en espèces
   statut_global VARCHAR(20) NOT NULL DEFAULT 'EnCours',   -- EnCours, EnAttenteResponsable, Validee, Rejetee
   date_creation TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

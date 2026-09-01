@@ -140,7 +140,7 @@ Table demande_financement {
   nb_femmes_benef int [not null, default: 0]
   nb_hommes_benef int [not null, default: 0]
   montant_demande decimal(15,2) [not null]
-  co_financement_en_nature decimal(15,2) [note: 'apport du canton, en nature -- rassure le donateur']
+  co_financement_en_nature varchar(255) [note: 'apport du canton, en nature, texte libre (ex: Terrain disponible) -- rassure le donateur']
   co_financement_especes decimal(15,2) [note: 'apport du canton, en especes']
   statut_global varchar(20) [not null, default: 'EnCours', note: 'EnCours, EnAttenteResponsable, Validee, Rejetee']
   date_creation timestamp [not null, default: `CURRENT_TIMESTAMP`]
