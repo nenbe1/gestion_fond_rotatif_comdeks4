@@ -6,6 +6,10 @@
 INSERT INTO parametre (cle, valeur, description) VALUES
   ('taux_penalite_retard', '2', 'Pénalité de retard proposée, appliquée par semaine de retard sur la part restant due de chaque bénéficiaire (%)');
 
+-- NOTE : pas de contrainte FOREIGN KEY ici — la base réelle (Railway) a
+-- ses tables en moteur MyISAM (constaté sur attribution_financement),
+-- qui ne supporte pas les clés étrangères. Simples index à la place,
+-- cohérent avec le reste de la base telle qu'elle existe réellement.
 CREATE TABLE penalite_retard (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   attribution_financement_id BIGINT NOT NULL,
@@ -21,6 +25,6 @@ CREATE TABLE penalite_retard (
   date_calcul TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   date_decision TIMESTAMP NULL,
   responsable_id BIGINT NULL,
-  CONSTRAINT fk_penalite_attribution FOREIGN KEY (attribution_financement_id) REFERENCES attribution_financement(id),
-  CONSTRAINT fk_penalite_responsable FOREIGN KEY (responsable_id) REFERENCES responsable_fond_rotatif(id)
+  KEY idx_penalite_attribution (attribution_financement_id),
+  KEY idx_penalite_responsable (responsable_id)
 );

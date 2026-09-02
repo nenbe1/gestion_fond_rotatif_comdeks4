@@ -462,6 +462,8 @@ CREATE TABLE notification (
 -- PENALITE_RETARD — proposée automatiquement par le système (job
 -- quotidien), validée ou rejetée au cas par cas par la Responsable.
 -- Voir migration_penalites_retard.sql pour le détail du raisonnement.
+-- Pas de FOREIGN KEY : la base réelle (Railway) a ses tables en MyISAM,
+-- qui ne les supporte pas — simples index à la place.
 -- ---------------------------------------------------------------------
 CREATE TABLE penalite_retard (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -473,8 +475,8 @@ CREATE TABLE penalite_retard (
   date_calcul TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   date_decision TIMESTAMP NULL,
   responsable_id BIGINT NULL,
-  CONSTRAINT fk_penalite_attribution FOREIGN KEY (attribution_financement_id) REFERENCES attribution_financement(id),
-  CONSTRAINT fk_penalite_responsable FOREIGN KEY (responsable_id) REFERENCES responsable_fond_rotatif(id)
+  KEY idx_penalite_attribution (attribution_financement_id),
+  KEY idx_penalite_responsable (responsable_id)
 );
 
 -- =====================================================================
