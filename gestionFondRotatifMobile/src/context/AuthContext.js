@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import appelerApi from '../api/client';
+import appelerApi, { definirGestionnaireNonAutorise } from '../api/client';
 
 const AuthContext = createContext(null);
 
@@ -17,6 +17,13 @@ export function AuthProvider({ children }) {
       setEnChargement(false);
     }
     chargerSession();
+  }, []);
+
+  // Branche le client API : dès qu'une requête détecte une session
+  // expirée (401), on vide l'utilisateur ici, ce qui fait basculer
+  // automatiquement RootNavigator vers l'écran de connexion.
+  useEffect(() => {
+    definirGestionnaireNonAutorise(() => setUtilisateur(null));
   }, []);
 
   /** Connecte l'utilisateur, stocke le token et ses infos. */

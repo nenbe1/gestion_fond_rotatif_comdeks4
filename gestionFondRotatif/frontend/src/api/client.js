@@ -51,6 +51,23 @@ async function appelerApi(chemin, options = {}) {
     body: estFormData ? options.body : (options.body ? JSON.stringify(options.body) : undefined),
   });
 
+  // Session expirée ou invalide : on déconnecte et on renvoie directement
+  // vers la page de connexion, sans laisser le message technique du
+  // backend ("Token invalide ou expiré.") s'afficher à l'utilisateur.
+  // On ne redirige que si un token était présent (donc une vraie session
+  // qui vient d'expirer) — si l'appel était déjà fait sans être connecté,
+  // les pages gèrent ça normalement via leurs propres redirections.
+  if (reponse.status === 401 && token) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('utilisateur');
+    if (window.location.pathname !== '/connexion') {
+      window.location.href = '/connexion';
+    }
+    // Promesse qui ne se résout jamais : la page est en train de changer,
+    // inutile de laisser le code appelant afficher une erreur avant ça.
+    return new Promise(() => {});
+  }
+
   const donnees = await reponse.json().catch(() => ({}));
 
   if (!reponse.ok) {

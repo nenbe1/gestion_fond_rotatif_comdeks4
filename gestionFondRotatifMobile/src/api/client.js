@@ -18,6 +18,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // sur l'IP locale du PC sur le Wi-Fi (à adapter à votre propre réseau).
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.43.120:5000/api'; // IP locale de votre PC sur le Wi-Fi (développement uniquement)
 
+// Callback branché par AuthContext (voir ci-dessous) pour pouvoir
+// déconnecter proprement l'utilisateur — et donc revenir automatiquement
+// à l'écran de connexion — dès qu'un appel API détecte une session
+// expirée, sans que ce fichier ait besoin de connaître React Navigation.
+let gestionnaireNonAutorise = null;
+export function definirGestionnaireNonAutorise(fonction) {
+  gestionnaireNonAutorise = fonction;
+}
+
 /**
  * Effectue une requête vers l'API, en ajoutant automatiquement le token
  * de connexion s'il existe (stocké dans AsyncStorage après /connexion).
@@ -44,6 +53,18 @@ async function appelerApi(chemin, options = {}) {
     },
     body: estFormData ? options.body : (options.body ? JSON.stringify(options.body) : undefined),
   });
+
+  // Session expirée ou invalide : on déconnecte et on repasse
+  // automatiquement à l'écran de connexion, sans laisser le message
+  // technique du backend ("Token invalide ou expiré.") s'afficher.
+  if (reponse.status === 401 && token) {
+    await AsyncStorage.removeItem('token');
+    await AsyncStorage.removeItem('utilisateur');
+    if (gestionnaireNonAutorise) gestionnaireNonAutorise();
+    // Promesse qui ne se résout jamais : l'écran est en train de changer,
+    // inutile de laisser le code appelant afficher une erreur avant ça.
+    return new Promise(() => {});
+  }
 
   const donnees = await reponse.json().catch(() => ({}));
 
